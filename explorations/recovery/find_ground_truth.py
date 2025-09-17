@@ -12,9 +12,10 @@ import csv
 # fix degree and target function
 deg = 101
 a = 0.2
-targ = lambda x: x / a
+targ = lambda x: 0.99 * x / a
 parity = deg % 2
-tolerance = 1e-4
+tolerance = 1e-12
+epsil = 1e-2
 
 # Define expected CSV columns
 expected_columns = ['npts', 'degree', 'parity', 'convergence_diff', 'iteration_time', 'angles_json', 'coefs_json', 'out_json']
@@ -23,7 +24,7 @@ expected_columns = ['npts', 'degree', 'parity', 'convergence_diff', 'iteration_t
 script_dir = os.path.dirname(os.path.abspath(__file__))
 data_dir = os.path.join(script_dir, "data")
 os.makedirs(data_dir, exist_ok=True)
-csv_filename = os.path.join(data_dir, f"ground_truth_convergence_deg_{deg}.csv")
+csv_filename = os.path.join(data_dir, f"ground_truth_convergence_deg_{deg}_max99_epsil2.csv")
 
 # Initialize CSV with headers if it doesn't exist
 if not os.path.exists(csv_filename):
@@ -114,7 +115,7 @@ while True:
     opts = {
         'intervals': [0, a],
         'objnorm': np.inf,
-        'epsil': 0,
+        'epsil': epsil,
             'npts': current_npts,
         'isplot': False,
         'fscale': 1,

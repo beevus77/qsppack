@@ -8,6 +8,11 @@ import pandas as pd
 import json
 import argparse
 
+# Set LaTeX fonts
+plt.rcParams['text.usetex'] = True
+plt.rcParams['font.family'] = 'serif'
+plt.rcParams['font.size'] = 12
+
 
 def plot_fit_from_csv(csv_filename, npts_value=None):
     """
@@ -52,10 +57,10 @@ def plot_fit_from_csv(csv_filename, npts_value=None):
     
     # Define target function (same as in find_ground_truth.py)
     a = 0.2
-    targ = lambda x: x / a
+    targ = lambda x: 0.99 * x / a
     
     # Generate plotting data
-    xlist = np.linspace(-1, 1, 1000)
+    xlist = np.linspace(-1, 1, int(1e6))
     targ_value = targ(xlist)
     func_value = chebyshev_to_func(xlist, coef, parity, True)
     
@@ -72,8 +77,8 @@ def plot_fit_from_csv(csv_filename, npts_value=None):
     plt.ylim([-1.1, 1.1])
     plt.legend(loc='best')
     plt.title(f'QSP Fit Comparison (degree={degree}, npts={npts}, conv_diff={convergence_diff:.2e})')
-    plt.xlabel('x')
-    plt.ylabel('f(x)')
+    plt.xlabel(r'$x$')
+    plt.ylabel(r'$f(x)$')
     plt.tight_layout()
     plt.show()
 
@@ -98,10 +103,10 @@ def plot_fit_from_npz(npz_filename):
     
     # Define target function (same as in find_ground_truth.py)
     a = 0.2
-    targ = lambda x: x / a
+    targ = lambda x: 0.99 * x / a
     
     # Generate plotting data
-    xlist = np.linspace(-1, 1, 1000)
+    xlist = np.linspace(-1, 1, 1e6)
     targ_value = targ(xlist)
     func_value = chebyshev_to_func(xlist, coef, parity, True)
     QSP_value = get_entry(xlist, angles, out)
@@ -116,8 +121,8 @@ def plot_fit_from_npz(npz_filename):
     plt.ylim([-1.1, 1.1])
     plt.legend(loc='best')
     plt.title(f'QSP Fit Comparison (degree={degree}, npts={npts})')
-    plt.xlabel('x')
-    plt.ylabel('f(x)')
+    plt.xlabel(r'$x$')
+    plt.ylabel(r'$f(x)$')
     plt.show()
 
 
