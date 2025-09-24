@@ -245,7 +245,7 @@ def main():
     if args.csv is None:
         script_dir = os.path.dirname(os.path.abspath(__file__))
         data_dir = os.path.join(script_dir, "data")
-        csv_filename = os.path.join(data_dir, f"fgt_polynomial_space_convergence_deg_{args.deg}_max99_epsil2_N15.csv")
+        csv_filename = os.path.join(data_dir, f"fgt_polynomial_space_convergence_deg_{args.deg}_N15.csv")
 
         if not os.path.exists(csv_filename):
             print(f"Error: CSV file not found: {csv_filename}")
