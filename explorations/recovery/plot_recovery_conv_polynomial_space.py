@@ -134,11 +134,11 @@ def plot_recovery_convergence_polyspace(csv_filename, deg=101, M=10_000_000, plo
                 vals_coef = chebval_dct(coef_full, M)
                 vals_rec = chebval_dct(coef_recovered_full, M)
                 # Compute max absolute values first
-                max_abs_coef = np.max(np.abs(vals_coef))
-                max_abs_rec = np.max(np.abs(vals_rec))
+                max_abs_coef = np.max(np.abs(vals_coef)) - 1.0
+                max_abs_rec = np.max(np.abs(vals_rec)) - 1.0
                 # Check constraints using the pre-computed max values
-                violated_coef = max_abs_coef > 1.0
-                violated_rec = max_abs_rec > 1.0
+                violated_coef = max_abs_coef > 0.0
+                violated_rec = max_abs_rec > 0.0
                 # Compute sup norm differences
                 sup_diff = np.max(np.abs(vals_coef - vals_gt))
                 sup_diff_rec = np.max(np.abs(vals_rec - vals_gt))
@@ -150,11 +150,11 @@ def plot_recovery_convergence_polyspace(csv_filename, deg=101, M=10_000_000, plo
                 vals_coef = chebval_dct(coef_full, M_small)
                 vals_rec = chebval_dct(coef_recovered_full, M_small)
                 # Compute max absolute values first
-                max_abs_coef = np.max(np.abs(vals_coef))
-                max_abs_rec = np.max(np.abs(vals_rec))
+                max_abs_coef = np.max(np.abs(vals_coef)) - 1.0
+                max_abs_rec = np.max(np.abs(vals_rec)) - 1.0
                 # Check constraints using the pre-computed max values
-                violated_coef = max_abs_coef > 1.0
-                violated_rec = max_abs_rec > 1.0
+                violated_coef = max_abs_coef > 0.0
+                violated_rec = max_abs_rec > 0.0
                 # Compute sup norm differences
                 sup_diff = np.max(np.abs(vals_coef - vals_gt))
                 sup_diff_rec = np.max(np.abs(vals_rec - vals_gt))
