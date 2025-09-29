@@ -311,17 +311,8 @@ def plot_max_constraint_violation(csv_filename, deg=101):
     # Grid and labels
     ax.grid(True, alpha=0.3)
     ax.set_xlabel('npts', fontsize=14)
-    ax.set_ylabel('Maximum |coefficient value|', fontsize=14)
+    ax.set_ylabel('Maximum Constraint Violation', fontsize=14)
     ax.set_title(f'Maximum Constraint Violations (degree {deg})', fontsize=16, pad=20)
-    
-    # Legend for color coding
-    from matplotlib.lines import Line2D
-    legend_elements = [
-        Line2D([0], [0], marker='x', color='blue', linestyle='None', markersize=8, markeredgewidth=2, label='Constraints Satisfied'),
-        Line2D([0], [0], marker='x', color='red', linestyle='None', markersize=8, markeredgewidth=2, label='Constraints Violated'),
-        Line2D([0], [0], linestyle='--', color='k', label='max |coef|')
-    ]
-    ax.legend(handles=legend_elements, loc='upper right', fontsize=12)
     
     plt.tight_layout()
     
