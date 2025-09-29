@@ -55,7 +55,7 @@ def plot_recovery_convergence_polyspace(csv_filename, deg=101, M=10_000_000, plo
     data = pd.read_csv(csv_filename)
 
     # Ensure cache columns exist
-    for col in ['constraint_violated', 'sup_diff', 'sup_diff_rec']:
+    for col in ['constraint_violated_coef', 'constraint_violated_rec', 'sup_diff', 'sup_diff_rec', 'max_abs_coef', 'max_abs_rec']:
         if col not in data.columns:
             data[col] = np.nan
 
@@ -75,7 +75,8 @@ def plot_recovery_convergence_polyspace(csv_filename, deg=101, M=10_000_000, plo
     npts_values = []
     diff_coef_vs_gt = []           # ||coef_full - gt||_2 or ||vals_coef - vals_gt||_∞
     diff_recovered_vs_gt = []      # ||coef_recovered_full - gt||_2 or ||vals_rec - vals_gt||_∞
-    constraint_violations = []     # True if any constraint violated for either polynomial
+    constraint_violations_coef = []  # True if constraint violated for vals_coef
+    constraint_violations_rec = []   # True if constraint violated for vals_rec
 
     print("Computing convergence metrics in coefficient space...")
 
@@ -107,16 +108,23 @@ def plot_recovery_convergence_polyspace(csv_filename, deg=101, M=10_000_000, plo
 
         # Constraint check via DCT-I at Chebyshev nodes
         # Check if we need to compute anything (constraint violations or sup norms)
-        need_compute = (pd.isna(row.get('constraint_violated', np.nan)) or 
+        need_compute = (pd.isna(row.get('constraint_violated_coef', np.nan)) or 
+                       pd.isna(row.get('constraint_violated_rec', np.nan)) or
                        pd.isna(row.get('sup_diff', np.nan)) or 
-                       pd.isna(row.get('sup_diff_rec', np.nan)))
+                       pd.isna(row.get('sup_diff_rec', np.nan)) or
+                       pd.isna(row.get('max_abs_coef', np.nan)) or
+                       pd.isna(row.get('max_abs_rec', np.nan)))
         
         if not need_compute:
             # Use cached values
-            violated = bool(row['constraint_violated'])
+            violated_coef = bool(row['constraint_violated_coef'])
+            violated_rec = bool(row['constraint_violated_rec'])
             sup_diff = float(row['sup_diff'])
             sup_diff_rec = float(row['sup_diff_rec'])
+            max_abs_coef = float(row['max_abs_coef'])
+            max_abs_rec = float(row['max_abs_rec'])
         else:
+            print("Checking constraint violations...")
             # Compute ground truth values once
             if vals_gt is None:
                 print(f"  Computing ground truth values at {M} Chebyshev nodes...")
@@ -125,7 +133,12 @@ def plot_recovery_convergence_polyspace(csv_filename, deg=101, M=10_000_000, plo
             try:
                 vals_coef = chebval_dct(coef_full, M)
                 vals_rec = chebval_dct(coef_recovered_full, M)
-                violated = (np.max(np.abs(vals_coef)) > 1.0) or (np.max(np.abs(vals_rec)) > 1.0)
+                # Compute max absolute values first
+                max_abs_coef = np.max(np.abs(vals_coef))
+                max_abs_rec = np.max(np.abs(vals_rec))
+                # Check constraints using the pre-computed max values
+                violated_coef = max_abs_coef > 1.0
+                violated_rec = max_abs_rec > 1.0
                 # Compute sup norm differences
                 sup_diff = np.max(np.abs(vals_coef - vals_gt))
                 sup_diff_rec = np.max(np.abs(vals_rec - vals_gt))
@@ -136,12 +149,21 @@ def plot_recovery_convergence_polyspace(csv_filename, deg=101, M=10_000_000, plo
                     vals_gt = chebval_dct(gt_coef_full, M_small)
                 vals_coef = chebval_dct(coef_full, M_small)
                 vals_rec = chebval_dct(coef_recovered_full, M_small)
-                violated = (np.max(np.abs(vals_coef)) > 1.0) or (np.max(np.abs(vals_rec)) > 1.0)
+                # Compute max absolute values first
+                max_abs_coef = np.max(np.abs(vals_coef))
+                max_abs_rec = np.max(np.abs(vals_rec))
+                # Check constraints using the pre-computed max values
+                violated_coef = max_abs_coef > 1.0
+                violated_rec = max_abs_rec > 1.0
+                # Compute sup norm differences
                 sup_diff = np.max(np.abs(vals_coef - vals_gt))
                 sup_diff_rec = np.max(np.abs(vals_rec - vals_gt))
             
             # Cache computed values
-            data.at[idx, 'constraint_violated'] = violated
+            data.at[idx, 'constraint_violated_coef'] = violated_coef
+            data.at[idx, 'constraint_violated_rec'] = violated_rec
+            data.at[idx, 'max_abs_coef'] = max_abs_coef
+            data.at[idx, 'max_abs_rec'] = max_abs_rec
             data.at[idx, 'sup_diff'] = sup_diff
             data.at[idx, 'sup_diff_rec'] = sup_diff_rec
             modified = True
@@ -154,19 +176,23 @@ def plot_recovery_convergence_polyspace(csv_filename, deg=101, M=10_000_000, plo
         else:  # plot_type == 2
             diff_coef_vs_gt.append(diff_coef)
             diff_recovered_vs_gt.append(diff_rec)
-        constraint_violations.append(violated)
+        constraint_violations_coef.append(violated_coef)
+        constraint_violations_rec.append(violated_rec)
 
-        print(f"  npts={npts}: ||coef-gt||_2={diff_coef:.2e}, ||rec-gt||_2={diff_rec:.2e}, violated={violated}")
+        print(f"  npts={npts}: ||coef-gt||_2={diff_coef:.2e}, ||rec-gt||_2={diff_rec:.2e}")
+        print(f"    coef violated={violated_coef}, rec violated={violated_rec}")
+        print(f"    max_abs_coef={max_abs_coef:.2e}, max_abs_rec={max_abs_rec:.2e}")
         print(f"    sup_diff={sup_diff:.2e}, sup_diff_rec={sup_diff_rec:.2e}")
 
     # Create the plot
     fig, ax = plt.subplots(figsize=(10, 8))
 
-    # Color coding based on constraint violation
-    for npts, d1, d2, violated in zip(npts_values, diff_coef_vs_gt, diff_recovered_vs_gt, constraint_violations):
-        color = 'red' if violated else 'blue'
-        ax.loglog(npts, d1, 'x', color=color, markersize=8, markeredgewidth=2)
-        ax.loglog(npts, d2, 'o', color=color, markersize=5, markeredgewidth=1, fillstyle='none')
+    # Color coding based on constraint violation - separate colors for coef and rec
+    for npts, d1, d2, violated_coef, violated_rec in zip(npts_values, diff_coef_vs_gt, diff_recovered_vs_gt, constraint_violations_coef, constraint_violations_rec):
+        color_coef = 'red' if violated_coef else 'blue'
+        color_rec = 'red' if violated_rec else 'blue'
+        ax.loglog(npts, d1, 'x', color=color_coef, markersize=8, markeredgewidth=2)
+        ax.loglog(npts, d2, 'o', color=color_rec, markersize=5, markeredgewidth=1, fillstyle='none')
 
     # Connect points with dashed lines for each series
     if plot_type == 'infty':
@@ -190,19 +216,21 @@ def plot_recovery_convergence_polyspace(csv_filename, deg=101, M=10_000_000, plo
     from matplotlib.lines import Line2D
     if plot_type == 'infty':
         legend_elements = [
-            Line2D([0], [0], marker='x', color='blue', linestyle='None', markersize=8, markeredgewidth=2, label='Constraints Satisfied'),
-            Line2D([0], [0], marker='x', color='red', linestyle='None', markersize=8, markeredgewidth=2, label='Constraints Violated'),
+            Line2D([0], [0], marker='x', color='blue', linestyle='None', markersize=8, markeredgewidth=2, label='Coef: Constraints Satisfied'),
+            Line2D([0], [0], marker='x', color='red', linestyle='None', markersize=8, markeredgewidth=2, label='Coef: Constraints Violated'),
+            Line2D([0], [0], marker='o', color='blue', linestyle='None', markersize=5, fillstyle='none', label='Rec: Constraints Satisfied'),
+            Line2D([0], [0], marker='o', color='red', linestyle='None', markersize=5, fillstyle='none', label='Rec: Constraints Violated'),
             Line2D([0], [0], linestyle='--', color='k', label='max difference from ground truth'),
-            Line2D([0], [0], linestyle='-.', color='k', label='max difference from ground truth, recovered'),
-            Line2D([0], [0], marker='o', color='k', linestyle='None', markersize=5, fillstyle='none', label='Recovered markers')
+            Line2D([0], [0], linestyle='-.', color='k', label='max difference from ground truth, recovered')
         ]
     else:
         legend_elements = [
-            Line2D([0], [0], marker='x', color='blue', linestyle='None', markersize=8, markeredgewidth=2, label='Constraints Satisfied'),
-            Line2D([0], [0], marker='x', color='red', linestyle='None', markersize=8, markeredgewidth=2, label='Constraints Violated'),
+            Line2D([0], [0], marker='x', color='blue', linestyle='None', markersize=8, markeredgewidth=2, label='Coef: Constraints Satisfied'),
+            Line2D([0], [0], marker='x', color='red', linestyle='None', markersize=8, markeredgewidth=2, label='Coef: Constraints Violated'),
+            Line2D([0], [0], marker='o', color='blue', linestyle='None', markersize=5, fillstyle='none', label='Rec: Constraints Satisfied'),
+            Line2D([0], [0], marker='o', color='red', linestyle='None', markersize=5, fillstyle='none', label='Rec: Constraints Violated'),
             Line2D([0], [0], linestyle='--', color='k', label='||coef - gt||_2'),
-            Line2D([0], [0], linestyle='-.', color='k', label='||recovered - gt||_2'),
-            Line2D([0], [0], marker='o', color='k', linestyle='None', markersize=5, fillstyle='none', label='Recovered markers')
+            Line2D([0], [0], linestyle='-.', color='k', label='||recovered - gt||_2')
         ]
     ax.legend(handles=legend_elements, loc='upper right', fontsize=12)
 
@@ -228,7 +256,88 @@ def plot_recovery_convergence_polyspace(csv_filename, deg=101, M=10_000_000, plo
     print(f"Ground truth degree: {gt_degree}")
     print(f"Final ||coef-gt||_2: {diff_coef_vs_gt[-1]:.2e}")
     print(f"Final ||recovered-gt||_2: {diff_recovered_vs_gt[-1]:.2e}")
-    print(f"Constraint violations: {sum(constraint_violations)}/{len(constraint_violations)}")
+    print(f"Coef constraint violations: {sum(constraint_violations_coef)}/{len(constraint_violations_coef)}")
+    print(f"Rec constraint violations: {sum(constraint_violations_rec)}/{len(constraint_violations_rec)}")
+
+
+def plot_max_constraint_violation(csv_filename, deg=101):
+    """
+    Plot maximum constraint violation values (max_abs_coef) vs npts.
+    
+    Args:
+        csv_filename: Path to CSV file with convergence data
+        deg: Degree of polynomial (for title)
+    """
+    # Load CSV data
+    data = pd.read_csv(csv_filename)
+    
+    # Ensure required columns exist
+    for col in ['constraint_violated_coef', 'max_abs_coef']:
+        if col not in data.columns:
+            data[col] = np.nan
+    
+    # Sort by npts to ensure proper order
+    data = data.sort_values('npts').reset_index(drop=True)
+    
+    print(f"Using CSV file: {csv_filename}")
+    print("Plotting maximum constraint violations...")
+    
+    npts_values = []
+    max_abs_coef_values = []
+    constraint_violations_coef = []
+    
+    for idx, row in data.iterrows():
+        npts = int(row['npts'])
+        max_abs_coef = float(row['max_abs_coef']) if not pd.isna(row['max_abs_coef']) else 0.0
+        violated_coef = bool(row['constraint_violated_coef']) if not pd.isna(row['constraint_violated_coef']) else False
+        
+        npts_values.append(npts)
+        max_abs_coef_values.append(max_abs_coef)
+        constraint_violations_coef.append(violated_coef)
+        
+        print(f"  npts={npts}: max_abs_coef={max_abs_coef:.2e}, violated={violated_coef}")
+    
+    # Create the plot
+    fig, ax = plt.subplots(figsize=(10, 8))
+    
+    # Color coding based on constraint violation
+    for npts, max_abs, violated in zip(npts_values, max_abs_coef_values, constraint_violations_coef):
+        color = 'red' if violated else 'blue'
+        ax.loglog(npts, max_abs, 'x', color=color, markersize=8, markeredgewidth=2)
+    
+    # Connect points with dashed line
+    ax.loglog(npts_values, max_abs_coef_values, 'k--', alpha=0.7, linewidth=1, label='max |coef|')
+    
+    # Grid and labels
+    ax.grid(True, alpha=0.3)
+    ax.set_xlabel('npts', fontsize=14)
+    ax.set_ylabel('Maximum |coefficient value|', fontsize=14)
+    ax.set_title(f'Maximum Constraint Violations (degree {deg})', fontsize=16, pad=20)
+    
+    # Legend for color coding
+    from matplotlib.lines import Line2D
+    legend_elements = [
+        Line2D([0], [0], marker='x', color='blue', linestyle='None', markersize=8, markeredgewidth=2, label='Constraints Satisfied'),
+        Line2D([0], [0], marker='x', color='red', linestyle='None', markersize=8, markeredgewidth=2, label='Constraints Violated'),
+        Line2D([0], [0], linestyle='--', color='k', label='max |coef|')
+    ]
+    ax.legend(handles=legend_elements, loc='upper right', fontsize=12)
+    
+    plt.tight_layout()
+    
+    # Save plot
+    plot_filename = csv_filename.replace('.csv', '_max_constraint_violations.png')
+    plt.savefig(plot_filename, dpi=300, bbox_inches='tight')
+    print(f"Plot saved to: {plot_filename}")
+    
+    plt.show()
+    
+    # Print summary
+    print("\nConstraint Violation Summary:")
+    print(f"Total points: {len(npts_values)}")
+    print(f"Constraint violations: {sum(constraint_violations_coef)}/{len(constraint_violations_coef)}")
+    print(f"Max violation value: {max(max_abs_coef_values):.2e}")
+    print(f"Min violation value: {min(max_abs_coef_values):.2e}")
 
 
 def main():
@@ -238,6 +347,8 @@ def main():
     parser.add_argument('--M', type=int, default=10_000_000, help='Number of Chebyshev nodes for constraint check')
     parser.add_argument('--plot', type=str, default='2', choices=['2', 'infty'], 
                        help='Plot type: 2 for 2-norm differences (default), infty for infinity norm differences')
+    parser.add_argument('--max-violations', action='store_true', 
+                       help='Plot maximum constraint violations instead of convergence analysis')
 
     args = parser.parse_args()
 
@@ -255,7 +366,13 @@ def main():
         csv_filename = args.csv
 
     print(f"Using CSV file: {csv_filename}")
+    
+    # Always run the main convergence analysis
     plot_recovery_convergence_polyspace(csv_filename, args.deg, args.M, args.plot)
+    
+    # Additionally plot max constraint violations if requested
+    if args.max_violations:
+        plot_max_constraint_violation(csv_filename, args.deg)
 
 
 if __name__ == "__main__":
