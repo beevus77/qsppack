@@ -14,7 +14,7 @@ def recovered_coeffs(coefs, parity):
     Recovered coefficients from the original coefficients using the NLFA algorithms.
     """
     b_coeffs = b_from_cheb(coefs[parity::2], parity)
-    a_coeffs = weiss(b_coeffs, 2**18)
+    a_coeffs = weiss(b_coeffs, 2**16)
     gammas, _, _ = inverse_nonlinear_FFT(a_coeffs, b_coeffs)
     new_a, new_b = forward_nonlinear_FFT(gammas)
 
@@ -26,10 +26,10 @@ def recovered_coeffs(coefs, parity):
 # fix degree and target function
 deg = 101  # ACHTUNG: recovered_coeffs only works for odd parity for now
 a = 0.2
-targ = lambda x: x / a
+epsil = 1e-3
+targ = lambda x: (1-epsil) * x / a
 parity = deg % 2
 tolerance = 1e-8
-epsil = 0
 
 
 # Define expected CSV columns
@@ -39,7 +39,7 @@ expected_columns = ['npts', 'degree', 'parity', 'convergence_diff', 'iteration_t
 script_dir = os.path.dirname(os.path.abspath(__file__))
 data_dir = os.path.join(script_dir, "data")
 os.makedirs(data_dir, exist_ok=True)
-csv_filename = os.path.join(data_dir, f"fgt_polynomial_space_convergence_deg_{deg}_N18.csv")
+csv_filename = os.path.join(data_dir, f"fgt_polynomial_space_convergence_deg_{deg}_epsil3_N16.csv")
 
 # Initialize CSV with headers if it doesn't exist
 if not os.path.exists(csv_filename):
