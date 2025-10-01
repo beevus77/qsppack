@@ -7,14 +7,20 @@ import json
 import pandas as pd
 import time
 import csv
+import argparse
 
 
-def recovered_coeffs(coefs, parity):
+def recovered_coeffs(coefs, parity, N):
     """
     Recovered coefficients from the original coefficients using the NLFA algorithms.
+    
+    Args:
+        coefs: Coefficients to recover
+        parity: Parity of the polynomial
+        N: Parameter for weiss function
     """
     b_coeffs = b_from_cheb(coefs[parity::2], parity)
-    a_coeffs = weiss(b_coeffs, 2**16)
+    a_coeffs = weiss(b_coeffs, N)
     gammas, _, _ = inverse_nonlinear_FFT(a_coeffs, b_coeffs)
     new_a, new_b = forward_nonlinear_FFT(gammas)
 
@@ -23,10 +29,17 @@ def recovered_coeffs(coefs, parity):
     return new_coeffs
 
 
+# Parse command line arguments
+parser = argparse.ArgumentParser(description='Find ground truth for polynomial space recovery')
+parser.add_argument('--degree', type=int, default=101, help='Degree of polynomial (default: 101)')
+parser.add_argument('--epsilon', type=float, default=1e-4, help='Epsilon value (default: 1e-4)')
+parser.add_argument('--N', type=int, default=2**15, help='N parameter for weiss function (default: 2^15 = 32768)')
+args = parser.parse_args()
+
 # fix degree and target function
-deg = 101  # ACHTUNG: recovered_coeffs only works for odd parity for now
+deg = args.degree  # ACHTUNG: recovered_coeffs only works for odd parity for now
 a = 0.2
-epsil = 1e-4
+epsil = args.epsilon
 targ = lambda x: (1-epsil) * x / a
 parity = deg % 2
 tolerance = 1e-8
@@ -39,7 +52,10 @@ expected_columns = ['npts', 'degree', 'parity', 'convergence_diff', 'iteration_t
 script_dir = os.path.dirname(os.path.abspath(__file__))
 data_dir = os.path.join(script_dir, "data")
 os.makedirs(data_dir, exist_ok=True)
-csv_filename = os.path.join(data_dir, f"fgt_polynomial_space_convergence_deg_{deg}_epsil4_N16.csv")
+# Format epsilon for filename (e.g., 1e-4 -> epsil4)
+epsil_exp = int(-np.log10(epsil))
+N_exp = int(np.log2(args.N))
+csv_filename = os.path.join(data_dir, f"fgt_polynomial_space_convergence_deg_{deg}_epsil{epsil_exp}_N{N_exp}.csv")
 
 # Initialize CSV with headers if it doesn't exist
 if not os.path.exists(csv_filename):
@@ -96,7 +112,7 @@ print(f"Tolerance: {tolerance}")
 print(f"CSV file: {csv_filename}")
 print("-" * 50)
 
-while True:
+while current_npts < 600000:
     iteration += 1
     print(f"Iteration {iteration}: npts = {current_npts}")
     
@@ -131,7 +147,7 @@ while True:
     coef_full = cvx_poly_coef(targ, deg, opts)
     coef_curr = coef_full[parity::2]
 
-    coef_recovered = recovered_coeffs(coef_full, parity)
+    coef_recovered = recovered_coeffs(coef_full, parity, args.N)
 
     iteration_time = time.time() - start_time
     

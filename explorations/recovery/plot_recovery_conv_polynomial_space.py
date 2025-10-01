@@ -249,7 +249,7 @@ def plot_recovery_convergence_polyspace(csv_filename, deg=101, M=10_000_000, plo
         data.to_csv(csv_filename, index=False, quoting=csv.QUOTE_ALL)
         print(f"Cached constraint violations saved back to CSV: {csv_filename}")
 
-    plt.show()
+    # plt.show()
 
     # Print summary
     print("\nConvergence Summary (coefficient space):")
@@ -321,7 +321,7 @@ def plot_max_constraint_violation(csv_filename, deg=101):
     plt.savefig(plot_filename, dpi=300, bbox_inches='tight')
     print(f"Plot saved to: {plot_filename}")
     
-    plt.show()
+    # plt.show()
     
     # Print summary
     print("\nConstraint Violation Summary:")
