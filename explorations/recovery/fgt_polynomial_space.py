@@ -26,7 +26,7 @@ def recovered_coeffs(coefs, parity):
 # fix degree and target function
 deg = 101  # ACHTUNG: recovered_coeffs only works for odd parity for now
 a = 0.2
-epsil = 1e-3
+epsil = 1e-4
 targ = lambda x: (1-epsil) * x / a
 parity = deg % 2
 tolerance = 1e-8
@@ -39,7 +39,7 @@ expected_columns = ['npts', 'degree', 'parity', 'convergence_diff', 'iteration_t
 script_dir = os.path.dirname(os.path.abspath(__file__))
 data_dir = os.path.join(script_dir, "data")
 os.makedirs(data_dir, exist_ok=True)
-csv_filename = os.path.join(data_dir, f"fgt_polynomial_space_convergence_deg_{deg}_epsil3_N16.csv")
+csv_filename = os.path.join(data_dir, f"fgt_polynomial_space_convergence_deg_{deg}_epsil4_N16.csv")
 
 # Initialize CSV with headers if it doesn't exist
 if not os.path.exists(csv_filename):
