@@ -40,7 +40,7 @@ def chebval_dct(c, M):
     return dct(c_pad, type=1, norm=None)
 
 
-def plot_recovery_convergence_polyspace(csv_filename, deg=101, M=10_000_000, plot_type=2):
+def plot_recovery_convergence_polyspace(csv_filename, deg=101, M=10_000_000, plot_type=2, ground_truth_npts=None):
     """
     Plot convergence analysis in coefficient space using data from
     fgt_polynomial_space.py CSV.
@@ -50,27 +50,74 @@ def plot_recovery_convergence_polyspace(csv_filename, deg=101, M=10_000_000, plo
         deg: Degree of polynomial (for title)
         M: Number of Chebyshev nodes for constraint evaluation
         plot_type: Plot type - 2 for 2-norm differences, 'infty' for infinity norm differences
+        ground_truth_npts: Specific npts value to use as ground truth (default: None = use largest)
     """
     # Load CSV data
-    data = pd.read_csv(csv_filename)
+    data_full = pd.read_csv(csv_filename)
 
-    # Ensure cache columns exist
-    for col in ['constraint_violated_coef', 'constraint_violated_rec', 'sup_diff', 'sup_diff_rec', 'max_abs_coef', 'max_abs_rec']:
-        if col not in data.columns:
-            data[col] = np.nan
+    # Ensure cache columns exist (only GT-independent ones; GT-dependent ones added later)
+    for col in ['constraint_violated_coef', 'constraint_violated_rec', 'max_abs_coef', 'max_abs_rec']:
+        if col not in data_full.columns:
+            data_full[col] = np.nan
 
     # Sort by npts to ensure proper order
-    data = data.sort_values('npts').reset_index(drop=True)
+    data_full = data_full.sort_values('npts').reset_index(drop=True)
 
-    # Ground truth: use largest npts row's original coefficients (expanded to full)
-    ground_truth_idx = data['npts'].idxmax()
-    gt_row = data.iloc[ground_truth_idx]
+    # Determine ground truth npts value and get ground truth row
+    if ground_truth_npts is None:
+        # Default: use largest npts row's original coefficients (expanded to full)
+        ground_truth_idx = data_full['npts'].idxmax()
+        gt_row = data_full.iloc[ground_truth_idx]
+        gt_npts = int(gt_row['npts'])
+    else:
+        # Use specified ground truth npts
+        if ground_truth_npts not in data_full['npts'].values:
+            raise ValueError(f"Specified ground_truth_npts={ground_truth_npts} not found in data. Available values: {sorted(data_full['npts'].tolist())}")
+        gt_row = data_full[data_full['npts'] == ground_truth_npts].iloc[0]
+        gt_npts = ground_truth_npts
+    
     gt_parity = int(gt_row['parity'])
     gt_degree = int(gt_row['degree'])
     gt_coef_full = np.zeros(gt_degree+1)
     gt_coef_full[gt_parity::2] = np.array(json.loads(gt_row['coefs_json']))
 
-    print(f"Using ground truth from npts = {int(gt_row['npts'])}")
+    print(f"Using ground truth from npts = {gt_npts}")
+    
+    # Define column names based on ground truth choice
+    diff_coef_col = f'diff_coef_vs_gt{gt_npts}'
+    diff_rec_col = f'diff_rec_vs_gt{gt_npts}'
+    sup_diff_col = f'sup_diff_vs_gt{gt_npts}'
+    sup_diff_rec_col = f'sup_diff_rec_vs_gt{gt_npts}'
+    
+    # Ensure ground-truth-dependent columns exist in data_full
+    for col in [diff_coef_col, diff_rec_col, sup_diff_col, sup_diff_rec_col]:
+        if col not in data_full.columns:
+            data_full[col] = np.nan
+    
+    # Backward compatibility: migrate old column names to new GT-specific format
+    # This allows old CSVs with legacy column names to work without recomputing
+    if ground_truth_npts is None:
+        # Only migrate for default (largest) ground truth to avoid conflicts
+        legacy_mappings = {
+            'sup_diff': sup_diff_col,
+            'sup_diff_rec': sup_diff_rec_col,
+            'diff_coef': diff_coef_col,
+            'diff_rec': diff_rec_col
+        }
+        for old_col, new_col in legacy_mappings.items():
+            if old_col in data_full.columns:
+                # Copy old values to new column where new column is empty
+                mask = pd.isna(data_full[new_col]) & pd.notna(data_full[old_col])
+                if mask.any():
+                    data_full.loc[mask, new_col] = data_full.loc[mask, old_col]
+                    print(f"  Migrated {mask.sum()} values from legacy column '{old_col}' to '{new_col}'")
+    
+    # NOW filter data after columns have been added to data_full
+    if ground_truth_npts is None:
+        data = data_full  # Use all data (this is a reference, so changes to data_full are reflected)
+    else:
+        # Filter data for plotting to only include points up to and including ground truth
+        data = data_full[data_full['npts'] <= ground_truth_npts].reset_index(drop=True)
 
     npts_values = []
     diff_coef_vs_gt = []           # ||coef_full - gt||_2 or ||vals_coef - vals_gt||_∞
@@ -82,7 +129,7 @@ def plot_recovery_convergence_polyspace(csv_filename, deg=101, M=10_000_000, plo
 
     modified = False
     vals_gt = None  # Will compute once and reuse
-    for idx, row in data.iterrows():
+    for plot_idx, (idx, row) in enumerate(data.iterrows()):
         npts = int(row['npts'])
         degree = int(row['degree'])
         parity = int(row['parity'])
@@ -108,19 +155,24 @@ def plot_recovery_convergence_polyspace(csv_filename, deg=101, M=10_000_000, plo
 
         # Constraint check via DCT-I at Chebyshev nodes
         # Check if we need to compute anything (constraint violations or sup norms)
-        need_compute = (pd.isna(row.get('constraint_violated_coef', np.nan)) or 
-                       pd.isna(row.get('constraint_violated_rec', np.nan)) or
-                       pd.isna(row.get('sup_diff', np.nan)) or 
-                       pd.isna(row.get('sup_diff_rec', np.nan)) or
-                       pd.isna(row.get('max_abs_coef', np.nan)) or
-                       pd.isna(row.get('max_abs_rec', np.nan)))
+        need_compute_constraint = (pd.isna(row.get('constraint_violated_coef', np.nan)) or 
+                                   pd.isna(row.get('constraint_violated_rec', np.nan)) or
+                                   pd.isna(row.get('max_abs_coef', np.nan)) or
+                                   pd.isna(row.get('max_abs_rec', np.nan)))
+        
+        need_compute_gt_diff = (pd.isna(row.get(sup_diff_col, np.nan)) or 
+                               pd.isna(row.get(sup_diff_rec_col, np.nan)) or
+                               pd.isna(row.get(diff_coef_col, np.nan)) or
+                               pd.isna(row.get(diff_rec_col, np.nan)))
+        
+        need_compute = need_compute_constraint or need_compute_gt_diff
         
         if not need_compute:
             # Use cached values
             violated_coef = bool(row['constraint_violated_coef'])
             violated_rec = bool(row['constraint_violated_rec'])
-            sup_diff = float(row['sup_diff'])
-            sup_diff_rec = float(row['sup_diff_rec'])
+            sup_diff = float(row[sup_diff_col])
+            sup_diff_rec = float(row[sup_diff_rec_col])
             max_abs_coef = float(row['max_abs_coef'])
             max_abs_rec = float(row['max_abs_rec'])
         else:
@@ -159,13 +211,17 @@ def plot_recovery_convergence_polyspace(csv_filename, deg=101, M=10_000_000, plo
                 sup_diff = np.max(np.abs(vals_coef - vals_gt))
                 sup_diff_rec = np.max(np.abs(vals_rec - vals_gt))
             
-            # Cache computed values
-            data.at[idx, 'constraint_violated_coef'] = violated_coef
-            data.at[idx, 'constraint_violated_rec'] = violated_rec
-            data.at[idx, 'max_abs_coef'] = max_abs_coef
-            data.at[idx, 'max_abs_rec'] = max_abs_rec
-            data.at[idx, 'sup_diff'] = sup_diff
-            data.at[idx, 'sup_diff_rec'] = sup_diff_rec
+            # Cache computed values (update data_full, not data which may be filtered)
+            data_full_idx = data_full[data_full['npts'] == npts].index[0]
+            data_full.at[data_full_idx, 'constraint_violated_coef'] = violated_coef
+            data_full.at[data_full_idx, 'constraint_violated_rec'] = violated_rec
+            data_full.at[data_full_idx, 'max_abs_coef'] = max_abs_coef
+            data_full.at[data_full_idx, 'max_abs_rec'] = max_abs_rec
+            # Cache GT-dependent differences
+            data_full.at[data_full_idx, sup_diff_col] = sup_diff
+            data_full.at[data_full_idx, sup_diff_rec_col] = sup_diff_rec
+            data_full.at[data_full_idx, diff_coef_col] = diff_coef
+            data_full.at[data_full_idx, diff_rec_col] = diff_rec
             modified = True
 
         # Store results (use appropriate metric based on plot_type)
@@ -340,6 +396,8 @@ def main():
                        help='Plot type: 2 for 2-norm differences (default), infty for infinity norm differences')
     parser.add_argument('--max-violations', action='store_true', 
                        help='Plot maximum constraint violations instead of convergence analysis')
+    parser.add_argument('--ground-truth-npts', type=int, default=None,
+                       help='Specific npts value to use as ground truth (default: None = use largest npts)')
 
     args = parser.parse_args()
 
@@ -359,7 +417,7 @@ def main():
     print(f"Using CSV file: {csv_filename}")
     
     # Always run the main convergence analysis
-    plot_recovery_convergence_polyspace(csv_filename, args.deg, args.M, args.plot)
+    plot_recovery_convergence_polyspace(csv_filename, args.deg, args.M, args.plot, args.ground_truth_npts)
     
     # Additionally plot max constraint violations if requested
     if args.max_violations:

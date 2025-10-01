@@ -53,7 +53,7 @@ script_dir = os.path.dirname(os.path.abspath(__file__))
 data_dir = os.path.join(script_dir, "data")
 os.makedirs(data_dir, exist_ok=True)
 # Format epsilon for filename (e.g., 1e-4 -> epsil4)
-epsil_exp = int(-np.log10(epsil))
+epsil_exp = 0 if epsil == 0 else int(-np.log10(epsil))
 N_exp = int(np.log2(args.N))
 csv_filename = os.path.join(data_dir, f"fgt_polynomial_space_convergence_deg_{deg}_epsil{epsil_exp}_N{N_exp}.csv")
 
