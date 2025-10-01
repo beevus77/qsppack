@@ -5,3 +5,161 @@ Starting Convergence Analysis
 ==========================================
 Run 1: degree=25, N=2^15 (32768), epsilon=1e-4
 ==========================================
+/Users/jameslarsen/Desktop/LBL/qsppack/explorations/recovery/fgt_polynomial_space.py:28: ComplexWarning: Casting complex values to real discards the imaginary part
+  new_coeffs[1::2] = new_b[int(len(new_b)/2-1)::-1] + new_b[int(len(new_b)/2)::]
+Created new CSV file: /Users/jameslarsen/Desktop/LBL/qsppack/explorations/recovery/data/fgt_polynomial_space_convergence_deg_25_epsil4_N15.csv
+Found existing CSV with 0 entries
+Existing npts values: []
+Starting convergence loop for degree 25
+Tolerance: 1e-08
+CSV file: /Users/jameslarsen/Desktop/LBL/qsppack/explorations/recovery/data/fgt_polynomial_space_convergence_deg_25_epsil4_N15.csv
+--------------------------------------------------
+Iteration 1: npts = 25
+norm error = 0.009512803071439035
+max of solution = 0.9998999992240556
+  Iteration time: 146.68 seconds
+  Preparing to append data to CSV...
+  Appending data to CSV...
+  Data successfully appended to CSV
+--------------------------------------------------
+Iteration 2: npts = 32
+norm error = 0.012042425920079314
+max of solution = 0.9998999996561185
+  Convergence diff: 5.24e-01
+  Iteration time: 74.56 seconds
+  Preparing to append data to CSV...
+  Appending data to CSV...
+  Data successfully appended to CSV
+--------------------------------------------------
+Iteration 3: npts = 64
+norm error = 0.013195839729988057
+max of solution = 0.9998999999952227
+  Convergence diff: 2.05e-01
+  Iteration time: 78.69 seconds
+  Preparing to append data to CSV...
+  Appending data to CSV...
+  Data successfully appended to CSV
+--------------------------------------------------
+Iteration 4: npts = 128
+norm error = 0.0146957696718103
+max of solution = 0.9998999999875028
+  Convergence diff: 1.58e-02
+  Iteration time: 72.33 seconds
+  Preparing to append data to CSV...
+  Appending data to CSV...
+  Data successfully appended to CSV
+--------------------------------------------------
+Iteration 5: npts = 256
+norm error = 0.014679149235425348
+max of solution = 0.9998999998613849
+  Convergence diff: 4.30e-03
+  Iteration time: 70.75 seconds
+  Preparing to append data to CSV...
+  Appending data to CSV...
+  Data successfully appended to CSV
+--------------------------------------------------
+Iteration 6: npts = 512
+norm error = 0.014843709255684567
+max of solution = 0.9998999999906553
+  Convergence diff: 1.43e-03
+  Iteration time: 74.88 seconds
+  Preparing to append data to CSV...
+  Appending data to CSV...
+  Data successfully appended to CSV
+--------------------------------------------------
+Iteration 7: npts = 1024
+norm error = 0.014879776986410298
+max of solution = 0.9998999999966731
+  Convergence diff: 3.07e-04
+  Iteration time: 72.41 seconds
+  Preparing to append data to CSV...
+  Appending data to CSV...
+  Data successfully appended to CSV
+--------------------------------------------------
+Iteration 8: npts = 2048
+norm error = 0.014879503600175426
+max of solution = 0.9998999999969685
+  Convergence diff: 7.22e-05
+  Iteration time: 72.05 seconds
+  Preparing to append data to CSV...
+  Appending data to CSV...
+  Data successfully appended to CSV
+--------------------------------------------------
+Iteration 9: npts = 4096
+norm error = 0.014881041676138684
+max of solution = 0.9998999999999895
+  Convergence diff: 1.85e-05
+  Iteration time: 94.64 seconds
+  Preparing to append data to CSV...
+  Appending data to CSV...
+  Data successfully appended to CSV
+--------------------------------------------------
+Iteration 10: npts = 8192
+norm error = 0.01488133497577826
+max of solution = 0.9998999999987677
+  Convergence diff: 3.83e-06
+  Iteration time: 73.63 seconds
+  Preparing to append data to CSV...
+  Appending data to CSV...
+  Data successfully appended to CSV
+--------------------------------------------------
+Iteration 11: npts = 16384
+norm error = 0.014881342577154788
+max of solution = 0.9999000000002004
+  Convergence diff: 1.17e-06
+  Iteration time: 75.53 seconds
+  Preparing to append data to CSV...
+  Appending data to CSV...
+  Data successfully appended to CSV
+--------------------------------------------------
+Iteration 12: npts = 32768
+norm error = 0.014881374803494385
+max of solution = 0.999900000000096
+  Convergence diff: 4.09e-07
+  Iteration time: 75.87 seconds
+  Preparing to append data to CSV...
+  Appending data to CSV...
+  Data successfully appended to CSV
+--------------------------------------------------
+Iteration 13: npts = 65536
+norm error = 0.014881381952493444
+max of solution = 0.9999000000001453
+  Convergence diff: 7.86e-08
+  Iteration time: 88.29 seconds
+  Preparing to append data to CSV...
+  Appending data to CSV...
+  Data successfully appended to CSV
+--------------------------------------------------
+Iteration 14: npts = 131072
+norm error = 0.014881381282289774
+max of solution = 0.9999000000016647
+  Convergence diff: 1.50e-08
+  Iteration time: 91.24 seconds
+  Preparing to append data to CSV...
+  Appending data to CSV...
+  Data successfully appended to CSV
+--------------------------------------------------
+Iteration 15: npts = 262144
+norm error = 0.014881382133462018
+max of solution = 0.9999000000278506
+  Convergence diff: 5.10e-09
+  Iteration time: 111.72 seconds
+  CONVERGED! Difference 5.10e-09 < tolerance 1e-08
+  Preparing to append final converged data to CSV...
+  Appending final converged data to CSV...
+  Final converged data successfully appended to CSV
+
+Convergence complete!
+Final results saved to: /Users/jameslarsen/Desktop/LBL/qsppack/explorations/recovery/data/fgt_polynomial_space_convergence_deg_25_epsil4_N15.csv
+Available npts values: [25, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536, 131072, 262144]
+To plot results, run: python plot_fit_polynomial_space.py [npts_value]
+
+==========================================
+Run 2: degree=25, N=2^16 (65536), epsilon=0
+==========================================
+/Users/jameslarsen/Desktop/LBL/qsppack/explorations/recovery/fgt_polynomial_space.py:56: RuntimeWarning: divide by zero encountered in log10
+  epsil_exp = int(-np.log10(epsil))
+Traceback (most recent call last):
+  File "/Users/jameslarsen/Desktop/LBL/qsppack/explorations/recovery/fgt_polynomial_space.py", line 56, in <module>
+    epsil_exp = int(-np.log10(epsil))
+OverflowError: cannot convert float infinity to integer
