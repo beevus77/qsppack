@@ -94,17 +94,18 @@ def plot_fit_from_csv(csv_filename, npts_value=None):
     # Create the plot
     print("Creating plot...")
     plt.figure(figsize=(12, 8))
-    plt.plot(xlist, targ_value, label='True', linewidth=2)
-    plt.plot(xlist, func_value, label='Polynomial Approximation', linewidth=2)
-    plt.plot(xlist, recovered_value, label='Recovered (polynomial space)', linewidth=2)
+    # Use colorblind-friendly colors: black, blue (safe), and orange
+    plt.plot(xlist, targ_value, label='Target', color='black', linewidth=2)
+    plt.plot(xlist, func_value, label='Polynomial Approximation', color='#0072B2', linewidth=2)  # Blue
+    plt.plot(xlist, recovered_value, label='Retraction', color='#E69F00', linewidth=2, linestyle='--')  # Orange
 
     plt.grid(True, alpha=0.3)
     plt.xlim([-1, 1])
     plt.ylim([-1.1, 1.1])
-    plt.legend(loc='best')
-    plt.title(f'Polynomial-Space Fit (degree={degree}, npts={npts}, conv_diff={convergence_diff:.2e})')
+    plt.legend(loc='best', framealpha=1)
+    # plt.title(f'Polynomial-Space Fit (degree={degree}, npts={npts}, conv_diff={convergence_diff:.2e})')
     plt.xlabel(r'$x$')
-    plt.ylabel(r'$f(x)$')
+    # plt.ylabel(r'$f(x)$')
     plt.tight_layout()
     plt.show()
 
