@@ -6,11 +6,11 @@ Reads:
   explorations/recovery/data/fig_1_constraint_violation_vs_npts.csv
 
 and produces:
-  explorations/recovery/figures/fig_1.pdf
+  explorations/recovery/figures/fig_1_2.pdf
 
 The plot is a log-log scatter with dual y-axes:
   x-axis: npts (number of discretization points)
-  left y-axis: max_violation (blue x's)
+  left y-axis: max_violation (blue x's), max L-inf error on [0,a] (blue open circles)
   right y-axis: optimization time in seconds (orange x's)
 """
 
@@ -36,7 +36,7 @@ def main() -> None:
         "--output",
         type=str,
         default=None,
-        help="Output figure path (default: explorations/recovery/figures/fig_1.pdf).",
+        help="Output figure path (default: explorations/recovery/figures/fig_1_2.pdf).",
     )
     args = parser.parse_args()
 
@@ -51,7 +51,7 @@ def main() -> None:
 
     if args.output is None:
         os.makedirs(figures_dir, exist_ok=True)
-        fig_path = os.path.join(figures_dir, "fig_1.pdf")
+        fig_path = os.path.join(figures_dir, "fig_1_2.pdf")
     else:
         fig_path = args.output
         out_dir = os.path.dirname(os.path.abspath(fig_path))
@@ -74,6 +74,15 @@ def main() -> None:
     y = data["max_violation"].to_numpy(dtype=float)
     t = data["iteration_time"].to_numpy(dtype=float)
 
+    # Optional: max L-inf error on fitting domain [0,a]
+    has_linf = "max_linf_error_fit_domain" in data.columns
+    if has_linf:
+        linf = data["max_linf_error_fit_domain"].to_numpy(dtype=float)
+        mask_linf = np.isfinite(linf)
+        x_linf = x[mask_linf]
+        linf_valid = linf[mask_linf]
+        linf_clamped = np.where(linf_valid > 0.0, linf_valid, 1e-16)
+
     # Clamp zero/negative values for log scale
     y_clamped = np.where(y > 0.0, y, 1e-16)
     t_clamped = np.where(t > 0.0, t, 1e-16)
@@ -84,12 +93,20 @@ def main() -> None:
 
     fig, ax = plt.subplots(figsize=(8, 6))
 
-    # Left y-axis: max violation (blue, polynomial approximation color)
-    ax.scatter(x, y_clamped, marker="x", color="#0072B2", s=60, linewidths=2)
+    # Left y-axis: max violation (blue x's), max L-inf error on [0,a] (blue circles)
+    ax.scatter(
+        x, y_clamped, marker="x", color="#0072B2", s=60, linewidths=2,
+        label="$\\max_{x \\in [-1,1]} |f(x)| - 1$",
+    )
+    if has_linf and np.any(mask_linf):
+        ax.scatter(
+            x_linf, linf_clamped, marker="o", s=50, facecolors="none",
+            edgecolors="#0072B2", linewidths=2,
+            label="$\\max_{x \\in [0,a]} |f(x) - g(x)|$",
+        )
     ax.set_xscale("log")
     ax.set_yscale("log")
     ax.set_xlabel("Number of discretization points")
-    ax.set_ylabel("Maximum constraint violation\n$\\max_{x \\in [-1,1]} |f(x)| - 1$", color="#0072B2")
     ax.tick_params(axis="y", labelcolor="#0072B2")
 
     # Right y-axis: optimization time (orange, retraction color)
@@ -100,6 +117,10 @@ def main() -> None:
     ax2.tick_params(axis="y", labelcolor="#E69F00")
 
     ax.grid(True, which="both", alpha=0.3)
+
+    # Legend: left-axis series only, left side of plot and vertically centered
+    lines1, labels1 = ax.get_legend_handles_labels()
+    ax.legend(lines1, labels1, loc="center left")
 
     fig.tight_layout()
     fig.savefig(fig_path, bbox_inches="tight")

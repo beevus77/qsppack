@@ -26,6 +26,7 @@ fi
 echo "Generating Fig. 1 data (will resume missing npts if file exists)..."
 python generate_fig_1_data.py
 
+# Plot is written to figures/fig_1_2.pdf (fig_1.pdf is left unchanged for comparison).
 echo "Generating Fig. 1 plot..."
 python plot_fig_1.py
 
