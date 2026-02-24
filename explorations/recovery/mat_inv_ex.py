@@ -7,6 +7,7 @@ from scipy.fft import dct
 from numpy.polynomial import chebyshev as cheb
 
 from qsppack.nlfa import b_from_cheb, weiss, inverse_nonlinear_FFT, forward_nonlinear_FFT
+from qsppack.utils import cvx_poly_coef
 
 
 # Match LaTeX/plotting style used elsewhere in this directory
@@ -126,56 +127,56 @@ def optimal_poly_cheb_coeffs(a: float, n: int) -> np.ndarray:
     return coefs
 
 
-def plot_optimal_and_retraction(a: float, n: int, npts: int) -> None:
+def get_coef_full(a: float, n: int, method: str) -> np.ndarray:
     """
-    Plot target 1/x (on S(a)), optimal polynomial, and its retraction.
-    Repeats the routine from plot_fit_polynomial_space.py (lines 68-92) using
-    degree and npts from mat_inv_ex, with coef_full from optimal_poly_cheb_coeffs.
+    Return full Chebyshev coefficient vector (length degree+1) for the polynomial.
+
+    method == 'sunderhof': optimal polynomial from Sünderhauf et al. (scaled by a).
+    method == 'cvxpy': convex optimization via cvx_poly_coef, target a/x on S(a),
+        with npts = nearest power of 2 to 2*degree for constraint discretization.
     """
-    # parity, degree, npts (same roles as in plot_fit_polynomial_space)
     degree = 2 * n - 1
-    parity = degree % 2  # 1 for odd polynomial
+    if method == "sunderhof":
+        return optimal_poly_cheb_coeffs(a, n)
+    if method == "cvxpy":
+        npts_cvx = degree
+        print(f"Using cvxpy discretization npts_cvx = {npts_cvx}")
+        targ = lambda x: a / x
+        opts = {
+            "intervals": [a, 1],
+            "objnorm": np.inf,
+            "epsil": 0.0,
+            "npts": npts_cvx,
+            "isplot": False,
+            "fscale": 1,
+            "method": "cvxpy",
+        }
+        return cvx_poly_coef(targ, degree, opts)
+    raise ValueError("method must be 'sunderhof' or 'cvxpy'")
 
-    # coef_full from optimal polynomial (not from CSV)
-    coef_full = optimal_poly_cheb_coeffs(a, n)
 
-    # Recovered coefficients: same NLFA pipeline as fgt_polynomial_space.recovered_coeffs
-    b_coeffs = b_from_cheb(coef_full[parity::2], parity)
-    a_coeffs = weiss(b_coeffs, npts)
-    gammas, _, _ = inverse_nonlinear_FFT(a_coeffs, b_coeffs)
-    new_a, new_b = forward_nonlinear_FFT(gammas)
-    coef_recovered_full = np.zeros(degree + 1)
-    coef_recovered_full[1::2] = new_b[int(len(new_b) / 2 - 1) :: -1] + new_b[int(len(new_b) / 2) : :]
-
-    # Generate plotting data on Chebyshev nodes (same as plot_fit_polynomial_space)
-    M = 10_000
-    print("Computing Chebyshev nodes...")
-    xlist = np.cos(np.pi * np.arange(M) / (M - 1))
-
-    # Target: a/x on S(a) = [-1, -a] ∪ [a, 1]
-    targ_value = np.full_like(xlist, np.nan, dtype=float)
-    domain_mask = np.abs(xlist) >= a
-    targ_value[domain_mask] = a / xlist[domain_mask]
-
-    print("Evaluating target function...")
-    print("Evaluating original polynomial...")
+def _draw_one_plot(
+    ax: plt.Axes,
+    xlist: np.ndarray,
+    targ_value: np.ndarray,
+    coef_full: np.ndarray,
+    coef_recovered_full: np.ndarray,
+    M: int,
+    title: str,
+    legend_loc: str = "best",
+) -> None:
+    """Draw target, polynomial, and retraction on a single axes (same style as plot_fit_polynomial_space)."""
     func_value = chebval_dct(coef_full, M)
-    print("Evaluating recovered polynomial...")
     recovered_value = chebval_dct(coef_recovered_full, M)
-
-    # Create the plot (same conventions as plot_fit_polynomial_space)
-    print("Creating plot...")
-    plt.figure(figsize=(12, 8))
-    plt.plot(xlist, targ_value, label="Target", color="black", linewidth=2)
-    plt.plot(
+    ax.plot(xlist, targ_value, label="Target", color="black", linewidth=3)
+    ax.plot(
         xlist,
         func_value,
-        label="Polynomial Approximation",
+        label="Polynomial Fit",
         color="#0072B2",
         linewidth=2,
-        linestyle="--",
     )
-    plt.plot(
+    ax.plot(
         xlist,
         recovered_value,
         label="Retraction",
@@ -183,12 +184,63 @@ def plot_optimal_and_retraction(a: float, n: int, npts: int) -> None:
         linewidth=2,
         linestyle="--",
     )
+    ax.grid(True, alpha=0.3)
+    ax.set_xlim([-1, 1])
+    ax.set_ylim([-1.1, 1.1])
+    ax.legend(loc=legend_loc, framealpha=1)
+    ax.set_xlabel(r"$x$")
+    ax.set_title(title)
 
-    plt.grid(True, alpha=0.3)
-    plt.xlim([-1, 1])
-    plt.ylim([-1.1, 1.1])
-    plt.legend(loc="best", framealpha=1)
-    plt.xlabel(r"$x$")
+
+def plot_optimal_and_retraction(a: float, n: int, N_weiss: int, method: str = "sunderhof") -> None:
+    """
+    Plot target a/x (on S(a)), polynomial approximation, and its retraction.
+    Repeats the routine from plot_fit_polynomial_space.py (lines 68-92) using
+    degree and N_weiss from mat_inv_ex. coef_full from get_coef_full(a, n, method).
+    If method == 'both', draw two subplots (left: sunderhof, right: cvxpy).
+    """
+    degree = 2 * n - 1
+    parity = degree % 2  # 1 for odd polynomial
+
+    # Shared evaluation grid and target
+    M = 10_000
+    print("Computing Chebyshev nodes...")
+    xlist = np.cos(np.pi * np.arange(M) / (M - 1))
+    targ_value = np.full_like(xlist, np.nan, dtype=float)
+    domain_mask = np.abs(xlist) >= a
+    targ_value[domain_mask] = a / xlist[domain_mask]
+
+    if method == "both":
+        print("Creating plot (both methods)...")
+        fig, (ax_left, ax_right) = plt.subplots(1, 2, figsize=(14, 6))
+
+        for ax, m, title in [(ax_left, "sunderhof", "Sunderhof"), (ax_right, "cvxpy", "CVXPY")]:
+            print(f"  Computing coefficients and retraction for {m}...")
+            coef_full = get_coef_full(a, n, m)
+            b_coeffs = b_from_cheb(coef_full[parity::2], parity)
+            a_coeffs = weiss(b_coeffs, N_weiss)
+            gammas, _, _ = inverse_nonlinear_FFT(a_coeffs, b_coeffs)
+            _, new_b = forward_nonlinear_FFT(gammas)
+            coef_recovered_full = np.zeros(degree + 1)
+            coef_recovered_full[1::2] = new_b[int(len(new_b) / 2 - 1) :: -1] + new_b[int(len(new_b) / 2) : :]
+            _draw_one_plot(ax, xlist, targ_value, coef_full, coef_recovered_full, M, title, legend_loc="upper left")
+
+        plt.tight_layout()
+        plt.show()
+        return
+
+    # Single plot
+    coef_full = get_coef_full(a, n, method)
+    b_coeffs = b_from_cheb(coef_full[parity::2], parity)
+    a_coeffs = weiss(b_coeffs, N_weiss)
+    gammas, _, _ = inverse_nonlinear_FFT(a_coeffs, b_coeffs)
+    _, new_b = forward_nonlinear_FFT(gammas)
+    coef_recovered_full = np.zeros(degree + 1)
+    coef_recovered_full[1::2] = new_b[int(len(new_b) / 2 - 1) :: -1] + new_b[int(len(new_b) / 2) : :]
+
+    print("Creating plot...")
+    fig, ax = plt.subplots(figsize=(12, 8))
+    _draw_one_plot(ax, xlist, targ_value, coef_full, coef_recovered_full, M, "")
     plt.tight_layout()
     plt.show()
 
@@ -203,21 +255,29 @@ def main() -> None:
     parser.add_argument(
         "--a",
         type=float,
-        default=0.2,
+        default=0.1,
         help="a parameter (domain S(a) = [-1,-a]∪[a,1]), must be in (0,1). "
-        "Default: 0.2.",
+        "Default: 0.1.",
     )
     parser.add_argument(
         "--n",
         type=int,
-        default=26,
-        help="n in degree d = 2n-1 of the optimal polynomial. Default: 26 (d=51).",
+        default=51,
+        help="n in degree d = 2n-1 of the optimal polynomial. Default: 51 (d=101).",
     )
     parser.add_argument(
-        "--npts",
+        "--N_weiss",
         type=int,
-        default=2**15,
-        help="npts parameter for Weiss transform in recovery (default: 2^15).",
+        default=2**12,
+        help="N for Weiss transform in recovery (default: 2^12).",
+    )
+    parser.add_argument(
+        "--method",
+        type=str,
+        choices=("sunderhof", "cvxpy", "both"),
+        default="cvxpy",
+        help="Method for polynomial coefficients: 'sunderhof', 'cvxpy', or 'both' "
+        "(two subplots: left Sunderhof, right CVXPY). Default: cvxpy.",
     )
 
     args = parser.parse_args()
@@ -229,10 +289,10 @@ def main() -> None:
         raise SystemExit("Error: a must lie in (0,1).")
 
     print(
-        f"Using a={args.a}, n={args.n} (degree d={2*args.n-1}), npts={args.npts} "
-        "for recovery."
+        f"Using a={args.a}, n={args.n} (degree d={2*args.n-1}), N_weiss={args.N_weiss}, "
+        f"method={args.method}."
     )
-    plot_optimal_and_retraction(args.a, args.n, args.npts)
+    plot_optimal_and_retraction(args.a, args.n, args.N_weiss, args.method)
 
 
 if __name__ == "__main__":
