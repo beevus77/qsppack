@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 from scipy.fft import dct
 from numpy.polynomial import chebyshev as cheb
 
-from fgt_polynomial_space import recovered_coeffs
+from qsppack.nlfa import b_from_cheb, weiss, inverse_nonlinear_FFT, forward_nonlinear_FFT
 
 
 # Match LaTeX/plotting style used elsewhere in this directory
@@ -121,49 +121,63 @@ def optimal_poly_cheb_coeffs(a: float, n: int) -> np.ndarray:
 
     # Fit polynomial in Chebyshev basis (ascending order c_0..c_d)
     coefs = cheb.chebfit(x_nodes, y_vals, deg=d)
+    # Scale polynomial by a
+    coefs *= a
     return coefs
 
 
-def plot_optimal_and_retraction(a: float, n: int, N_weiss: int) -> None:
+def plot_optimal_and_retraction(a: float, n: int, npts: int) -> None:
     """
     Plot target 1/x (on S(a)), optimal polynomial, and its retraction.
+    Repeats the routine from plot_fit_polynomial_space.py (lines 68-92) using
+    degree and npts from mat_inv_ex, with coef_full from optimal_poly_cheb_coeffs.
     """
+    # parity, degree, npts (same roles as in plot_fit_polynomial_space)
     degree = 2 * n - 1
-    parity = degree % 2  # should be 1 (odd)
+    parity = degree % 2  # 1 for odd polynomial
 
-    # Optimal polynomial Chebyshev coefficients (full, length degree+1)
+    # coef_full from optimal polynomial (not from CSV)
     coef_full = optimal_poly_cheb_coeffs(a, n)
 
-    # Retraction using the same NLFA pipeline as in fgt_polynomial_space.py
-    coef_recovered_full = recovered_coeffs(coef_full, parity, N_weiss)
+    # Recovered coefficients: same NLFA pipeline as fgt_polynomial_space.recovered_coeffs
+    b_coeffs = b_from_cheb(coef_full[parity::2], parity)
+    a_coeffs = weiss(b_coeffs, npts)
+    gammas, _, _ = inverse_nonlinear_FFT(a_coeffs, b_coeffs)
+    new_a, new_b = forward_nonlinear_FFT(gammas)
+    coef_recovered_full = np.zeros(degree + 1)
+    coef_recovered_full[1::2] = new_b[int(len(new_b) / 2 - 1) :: -1] + new_b[int(len(new_b) / 2) : :]
 
-    # Chebyshev nodes for evaluation (same convention as chebval_dct)
+    # Generate plotting data on Chebyshev nodes (same as plot_fit_polynomial_space)
     M = 10_000
+    print("Computing Chebyshev nodes...")
     xlist = np.cos(np.pi * np.arange(M) / (M - 1))
 
-    # Target function 1/x on S(a) = [-1, -a] ∪ [a, 1]; mask outside domain
+    # Target: a/x on S(a) = [-1, -a] ∪ [a, 1]
     targ_value = np.full_like(xlist, np.nan, dtype=float)
     domain_mask = np.abs(xlist) >= a
-    targ_value[domain_mask] = 1.0 / xlist[domain_mask]
+    targ_value[domain_mask] = a / xlist[domain_mask]
 
-    # Optimal polynomial and its retraction from Chebyshev coefficients
-    opt_value = chebval_dct(coef_full, M)
-    retr_value = chebval_dct(coef_recovered_full, M)
+    print("Evaluating target function...")
+    print("Evaluating original polynomial...")
+    func_value = chebval_dct(coef_full, M)
+    print("Evaluating recovered polynomial...")
+    recovered_value = chebval_dct(coef_recovered_full, M)
 
+    # Create the plot (same conventions as plot_fit_polynomial_space)
+    print("Creating plot...")
     plt.figure(figsize=(12, 8))
-
-    # Colors: target black, optimal blue, retraction orange (dashed)
-    plt.plot(xlist, targ_value, label=r"Target $1/x$", color="black", linewidth=2)
+    plt.plot(xlist, targ_value, label="Target", color="black", linewidth=2)
     plt.plot(
         xlist,
-        opt_value,
-        label="Optimal polynomial",
+        func_value,
+        label="Polynomial Approximation",
         color="#0072B2",
         linewidth=2,
+        linestyle="--",
     )
     plt.plot(
         xlist,
-        retr_value,
+        recovered_value,
         label="Retraction",
         color="#E69F00",
         linewidth=2,
@@ -171,10 +185,10 @@ def plot_optimal_and_retraction(a: float, n: int, N_weiss: int) -> None:
     )
 
     plt.grid(True, alpha=0.3)
-    plt.xlim([-1.0, 1.0])
+    plt.xlim([-1, 1])
     plt.ylim([-1.1, 1.1])
+    plt.legend(loc="best", framealpha=1)
     plt.xlabel(r"$x$")
-    plt.legend(loc="best", framealpha=1.0)
     plt.tight_layout()
     plt.show()
 
@@ -200,10 +214,10 @@ def main() -> None:
         help="n in degree d = 2n-1 of the optimal polynomial. Default: 26 (d=51).",
     )
     parser.add_argument(
-        "--N",
+        "--npts",
         type=int,
         default=2**15,
-        help="N parameter for Weiss transform in recovered_coeffs (default: 2^15).",
+        help="npts parameter for Weiss transform in recovery (default: 2^15).",
     )
 
     args = parser.parse_args()
@@ -215,10 +229,10 @@ def main() -> None:
         raise SystemExit("Error: a must lie in (0,1).")
 
     print(
-        f"Using a={args.a}, n={args.n} (degree d={2*args.n-1}), N={args.N} "
-        "for Weiss / NLFA retraction."
+        f"Using a={args.a}, n={args.n} (degree d={2*args.n-1}), npts={args.npts} "
+        "for recovery."
     )
-    plot_optimal_and_retraction(args.a, args.n, args.N)
+    plot_optimal_and_retraction(args.a, args.n, args.npts)
 
 
 if __name__ == "__main__":
