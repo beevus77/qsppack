@@ -34,16 +34,35 @@ parser = argparse.ArgumentParser(description='Find ground truth for polynomial s
 parser.add_argument('--degree', type=int, default=101, help='Degree of polynomial (default: 101)')
 parser.add_argument('--epsilon', type=float, default=1e-4, help='Epsilon value (default: 1e-4)')
 parser.add_argument('--N', type=int, default=2**15, help='N parameter for weiss function (default: 2^15 = 32768)')
+parser.add_argument(
+    '--problem-type',
+    type=str,
+    default='uniform_sv_amp',
+    choices=('uniform_sv_amp', 'mat_inv'),
+    help="Target problem: 'uniform_sv_amp' = (1-eps)*x/a on [0,a]; 'mat_inv' = a/x on [a,1] (matrix inversion). Default: uniform_sv_amp.",
+)
+parser.add_argument('--a', type=float, default=0.2, help='Parameter a: interval [0,a] or [a,1] and target scale. Must be in (0,1). Default: 0.2.')
 args = parser.parse_args()
 
-# fix degree and target function
+# fix degree and problem setup
 deg = args.degree  # ACHTUNG: recovered_coeffs only works for odd parity for now
-a = 0.2
-epsil = args.epsilon
-targ = lambda x: (1-epsil) * x / a
+a = args.a
+if not (0.0 < a < 1.0):
+    raise ValueError('--a must lie in (0, 1).')
 parity = deg % 2
 tolerance = 1e-8
 
+if args.problem_type == 'uniform_sv_amp':
+    epsil = args.epsilon
+    targ = lambda x: (1 - epsil) * x / a
+    intervals = [0, a]
+elif args.problem_type == 'mat_inv':
+    # Matrix inversion target a/x on [a, 1] (matches mat_inv_ex.py); epsilon from --epsilon
+    epsil = args.epsilon
+    targ = lambda x: a / x
+    intervals = [a, 1]
+else:
+    raise ValueError(f"Unknown problem_type: {args.problem_type}")
 
 # Define expected CSV columns
 expected_columns = ['npts', 'degree', 'parity', 'convergence_diff', 'iteration_time', 'coefs_json', 'coefs_recovered_json']
@@ -52,10 +71,12 @@ expected_columns = ['npts', 'degree', 'parity', 'convergence_diff', 'iteration_t
 script_dir = os.path.dirname(os.path.abspath(__file__))
 data_dir = os.path.join(script_dir, "data")
 os.makedirs(data_dir, exist_ok=True)
-# Format epsilon for filename (e.g., 1e-4 -> epsil4)
-epsil_exp = 0 if epsil == 0 else int(-np.log10(epsil))
 N_exp = int(np.log2(args.N))
-csv_filename = os.path.join(data_dir, f"fgt_polynomial_space_convergence_deg_{deg}_epsil{epsil_exp}_N{N_exp}.csv")
+epsil_exp = 0 if epsil == 0 else int(-np.log10(epsil))
+if args.problem_type == 'mat_inv':
+    csv_filename = os.path.join(data_dir, f"fgt_polynomial_space_convergence_deg_{deg}_mat_inv_epsil{epsil_exp}_N{N_exp}.csv")
+else:
+    csv_filename = os.path.join(data_dir, f"fgt_polynomial_space_convergence_deg_{deg}_uniform_sv_amp_epsil{epsil_exp}_N{N_exp}.csv")
 
 # Initialize CSV with headers if it doesn't exist
 if not os.path.exists(csv_filename):
@@ -107,6 +128,7 @@ if os.path.exists(csv_filename):
 else:
     existing_npts = []
 
+print(f"Problem type: {args.problem_type} (intervals={intervals})")
 print(f"Starting convergence loop for degree {deg}")
 print(f"Tolerance: {tolerance}")
 print(f"CSV file: {csv_filename}")
@@ -135,10 +157,10 @@ while current_npts < 600000:
     
     # do convex optimization with current npts
     opts = {
-        'intervals': [0, a],
+        'intervals': intervals,
         'objnorm': np.inf,
         'epsil': epsil,
-            'npts': current_npts,
+        'npts': current_npts,
         'isplot': False,
         'fscale': 1,
         'method': 'cvxpy'
