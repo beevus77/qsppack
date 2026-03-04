@@ -5,6 +5,7 @@ Shows 2-norm differences between coefficients and ground truth.
 Constraints are checked by evaluating via DCT-I at Chebyshev nodes.
 """
 
+import re
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -14,9 +15,39 @@ import argparse
 from scipy.fft import dct
 import csv
 
-# Set fonts (LaTeX disabled to avoid compatibility issues)
+# Use LaTeX for all text (labels, legend, titles); match mat_inv_ex.py font sizes
+plt.rcParams['text.usetex'] = True
 plt.rcParams['font.family'] = 'serif'
-plt.rcParams['font.size'] = 12
+plt.rcParams['font.size'] = 14
+plt.rcParams['axes.titlesize'] = 18
+plt.rcParams['axes.labelsize'] = 16
+plt.rcParams['legend.fontsize'] = 14
+
+# Colors matching degree_scaling_thresh_proj.py
+BLUE = "#0072B2"
+MAIZE = "#E69F00"
+
+
+def get_epsilon_title_from_csv_path(csv_path):
+    """
+    Parse epsilon from fgt_polynomial_space CSV filename (e.g. ..._epsil4_... -> 1e-4).
+    Returns a LaTeX title string like r"$\\epsilon = 0.0001$". If the epsilN pattern
+    is not found (e.g. epsilon=0 is omitted from the filename), returns r"$\\epsilon = 0$".
+    """
+    basename = os.path.basename(csv_path)
+    m = re.search(r"epsil(\d+)", basename)
+    if not m:
+        return r"$\epsilon = 0$"
+    exp = int(m.group(1))
+    if exp == 0:
+        eps = 0.0
+    else:
+        eps = 10.0 ** (-exp)
+    if eps == 0:
+        eps_str = "0"
+    else:
+        eps_str = f"{eps:.6f}".rstrip("0").rstrip(".")
+    return rf"$\epsilon = {eps_str}$"
 
 
 def chebval_dct(c, M):
@@ -40,7 +71,7 @@ def chebval_dct(c, M):
     return dct(c_pad, type=1, norm=None)
 
 
-def plot_recovery_convergence_polyspace(csv_filename, deg=101, M=10_000_000, plot_type=2, ground_truth_npts=None):
+def plot_recovery_convergence_polyspace(csv_filename, deg=101, M=10_000_000, plot_type=2, ground_truth_npts=None, ax=None, subplot_title=None):
     """
     Plot convergence analysis in coefficient space using data from
     fgt_polynomial_space.py CSV.
@@ -51,6 +82,8 @@ def plot_recovery_convergence_polyspace(csv_filename, deg=101, M=10_000_000, plo
         M: Number of Chebyshev nodes for constraint evaluation
         plot_type: Plot type - 2 for 2-norm differences, 'infty' for infinity norm differences
         ground_truth_npts: Specific npts value to use as ground truth (default: None = use largest)
+        ax: Matplotlib axes to plot into. If None, a new figure is created and saved.
+        subplot_title: If provided and ax is set, use as the subplot title (e.g. r"$\\epsilon = 0.0001$").
     """
     # Load CSV data
     data_full = pd.read_csv(csv_filename)
@@ -240,37 +273,22 @@ def plot_recovery_convergence_polyspace(csv_filename, deg=101, M=10_000_000, plo
         print(f"    max_abs_coef={max_abs_coef:.2e}, max_abs_rec={max_abs_rec:.2e}")
         print(f"    sup_diff={sup_diff:.2e}, sup_diff_rec={sup_diff_rec:.2e}")
 
-    # Create the plot
-    fig, ax = plt.subplots(figsize=(10, 8))
+    # Create the plot (or use provided axes)
+    from matplotlib.lines import Line2D
+    if ax is None:
+        fig, ax = plt.subplots(figsize=(10, 8))
+    else:
+        fig = None
 
-    # Color coding based on constraint violation - separate colors for coef and rec
-    for npts, d1, d2, violated_coef, violated_rec in zip(npts_values, diff_coef_vs_gt, diff_recovered_vs_gt, constraint_violations_coef, constraint_violations_rec):
-        color_coef = 'red' if violated_coef else 'blue'
-        color_rec = 'red' if violated_rec else 'blue'
-        ax.loglog(npts, d1, 'x', color=color_coef, markersize=8, markeredgewidth=2)
-        ax.loglog(npts, d2, 'o', color=color_rec, markersize=5, markeredgewidth=1, fillstyle='none')
-
-    # Connect points with dashed lines for each series
     if plot_type == 'infty':
+        # Infinity-norm: keep original color/marker behavior
+        for npts, d1, d2, violated_coef, violated_rec in zip(npts_values, diff_coef_vs_gt, diff_recovered_vs_gt, constraint_violations_coef, constraint_violations_rec):
+            color_coef = 'red' if violated_coef else 'blue'
+            color_rec = 'red' if violated_rec else 'blue'
+            ax.loglog(npts, d1, 'x', color=color_coef, markersize=8, markeredgewidth=2)
+            ax.loglog(npts, d2, 'o', color=color_rec, markersize=5, markeredgewidth=1, fillstyle='none')
         ax.loglog(npts_values, diff_coef_vs_gt, 'k--', alpha=0.7, linewidth=1, label='max difference from ground truth')
         ax.loglog(npts_values, diff_recovered_vs_gt, 'k-.', alpha=0.7, linewidth=1, label='max difference from ground truth, recovered')
-    else:
-        ax.loglog(npts_values, diff_coef_vs_gt, 'k--', alpha=0.7, linewidth=1, label='||coef - gt||_2')
-        ax.loglog(npts_values, diff_recovered_vs_gt, 'k-.', alpha=0.7, linewidth=1, label='||recovered - gt||_2')
-
-    # Grid and labels
-    ax.grid(True, alpha=0.3)
-    ax.set_xlabel('npts', fontsize=14)
-    if plot_type == 'infty':
-        ax.set_ylabel('Function ∞-norm difference', fontsize=14)
-        ax.set_title(f'Recovery Convergence (∞-norm, degree {deg})', fontsize=16, pad=20)
-    else:
-        ax.set_ylabel('Coefficient 2-norm difference', fontsize=14)
-        ax.set_title(f'Polynomial-Space Recovery Convergence (2-norm, degree {deg})', fontsize=16, pad=20)
-
-    # Legend for color coding
-    from matplotlib.lines import Line2D
-    if plot_type == 'infty':
         legend_elements = [
             Line2D([0], [0], marker='x', color='blue', linestyle='None', markersize=8, markeredgewidth=2, label='Coef: Constraints Satisfied'),
             Line2D([0], [0], marker='x', color='red', linestyle='None', markersize=8, markeredgewidth=2, label='Coef: Constraints Violated'),
@@ -280,25 +298,42 @@ def plot_recovery_convergence_polyspace(csv_filename, deg=101, M=10_000_000, plo
             Line2D([0], [0], linestyle='-.', color='k', label='max difference from ground truth, recovered')
         ]
     else:
+        # 2-norm: coef = blue (x violated, o satisfied); retraction = maize open circles only; same dashed line, no title, 3-entry legend
+        for npts, d1, d2, violated_coef in zip(npts_values, diff_coef_vs_gt, diff_recovered_vs_gt, constraint_violations_coef):
+            if violated_coef:
+                ax.loglog(npts, d1, 'x', color=BLUE, markersize=8, markeredgewidth=2)
+            else:
+                ax.loglog(npts, d1, 'o', color=BLUE, markersize=7, markeredgewidth=1, fillstyle='none')
+            ax.loglog(npts, d2, 'o', color=MAIZE, markersize=5, markeredgewidth=1, fillstyle='none')
+        ax.loglog(npts_values, diff_coef_vs_gt, 'k--', alpha=0.7, linewidth=1)
+        ax.loglog(npts_values, diff_recovered_vs_gt, 'k--', alpha=0.7, linewidth=1)
         legend_elements = [
-            Line2D([0], [0], marker='x', color='blue', linestyle='None', markersize=8, markeredgewidth=2, label='Coef: Constraints Satisfied'),
-            Line2D([0], [0], marker='x', color='red', linestyle='None', markersize=8, markeredgewidth=2, label='Coef: Constraints Violated'),
-            Line2D([0], [0], marker='o', color='blue', linestyle='None', markersize=5, fillstyle='none', label='Rec: Constraints Satisfied'),
-            Line2D([0], [0], marker='o', color='red', linestyle='None', markersize=5, fillstyle='none', label='Rec: Constraints Violated'),
-            Line2D([0], [0], linestyle='--', color='k', label='||coef - gt||_2'),
-            Line2D([0], [0], linestyle='-.', color='k', label='||recovered - gt||_2')
+            Line2D([0], [0], marker='x', color=BLUE, linestyle='None', markersize=8, markeredgewidth=2, label='Polynomial Fit (constraints violated)'),
+            Line2D([0], [0], marker='o', color=BLUE, linestyle='None', markersize=7, fillstyle='none', label='Polynomial Fit (constraints satisfied)'),
+            Line2D([0], [0], marker='o', color=MAIZE, linestyle='None', markersize=5, fillstyle='none', label='Retraction'),
         ]
-    ax.legend(handles=legend_elements, loc='upper right', fontsize=12)
 
-    plt.tight_layout()
-
-    # Save plot
+    # Grid and labels (no title)
+    ax.grid(True, alpha=0.3)
+    ax.set_xlabel('npts', fontsize=16)
     if plot_type == 'infty':
-        plot_filename = csv_filename.replace('.csv', '_inf_convergence.png')
+        ax.set_ylabel('Function ∞-norm difference', fontsize=16)
     else:
-        plot_filename = csv_filename.replace('.csv', '_polyspace_convergence.png')
-    plt.savefig(plot_filename, dpi=300, bbox_inches='tight')
-    print(f"Plot saved to: {plot_filename}")
+        ax.set_ylabel('Coefficient 2-norm difference', fontsize=16)
+    ax.legend(handles=legend_elements, loc='upper right', fontsize=14)
+
+    if ax is not None and subplot_title is not None:
+        ax.set_title(subplot_title, fontsize=18)
+
+    if ax is None:
+        plt.tight_layout()
+        # Save plot
+        if plot_type == 'infty':
+            plot_filename = csv_filename.replace('.csv', '_inf_convergence.png')
+        else:
+            plot_filename = csv_filename.replace('.csv', '_polyspace_convergence.pdf')
+        plt.savefig(plot_filename, dpi=300, bbox_inches='tight')
+        print(f"Plot saved to: {plot_filename}")
 
     # If we computed any constraints, persist them to the CSV
     if modified:
@@ -366,9 +401,9 @@ def plot_max_constraint_violation(csv_filename, deg=101):
     
     # Grid and labels
     ax.grid(True, alpha=0.3)
-    ax.set_xlabel('npts', fontsize=14)
-    ax.set_ylabel('Maximum Constraint Violation', fontsize=14)
-    ax.set_title(f'Maximum Constraint Violations (degree {deg})', fontsize=16, pad=20)
+    ax.set_xlabel('npts', fontsize=16)
+    ax.set_ylabel('Maximum Constraint Violation', fontsize=16)
+    ax.set_title(f'Maximum Constraint Violations (degree {deg})', fontsize=18, pad=20)
     
     plt.tight_layout()
     
@@ -390,6 +425,8 @@ def plot_max_constraint_violation(csv_filename, deg=101):
 def main():
     parser = argparse.ArgumentParser(description='Plot polynomial-space recovery convergence analysis')
     parser.add_argument('--csv', type=str, help='CSV file path (auto-detected if not provided)')
+    parser.add_argument('--csv2', type=str, default=None,
+                       help='Second CSV file; if provided with --csv, creates one figure with two subplots')
     parser.add_argument('--deg', type=int, default=101, help='Degree of polynomial (default: 101)')
     parser.add_argument('--M', type=int, default=10_000_000, help='Number of Chebyshev nodes for constraint check')
     parser.add_argument('--plot', type=str, default='2', choices=['2', 'infty'], 
@@ -401,6 +438,27 @@ def main():
 
     args = parser.parse_args()
 
+    # Two-CSV mode: one figure with two subplots
+    if args.csv is not None and args.csv2 is not None:
+        print(f"Using CSV files: {args.csv}, {args.csv2}")
+        title1 = get_epsilon_title_from_csv_path(args.csv)
+        title2 = get_epsilon_title_from_csv_path(args.csv2)
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 8))
+        plot_recovery_convergence_polyspace(args.csv, args.deg, args.M, args.plot, args.ground_truth_npts, ax=ax1, subplot_title=title1)
+        plot_recovery_convergence_polyspace(args.csv2, args.deg, args.M, args.plot, args.ground_truth_npts, ax=ax2, subplot_title=title2)
+        plt.tight_layout()
+        if args.plot == 'infty':
+            out_name = args.csv.replace('.csv', '_two_panels_inf_convergence.png')
+        else:
+            out_name = args.csv.replace('.csv', '_two_panels_polyspace_convergence.pdf')
+        plt.savefig(out_name, dpi=300, bbox_inches='tight')
+        print(f"Two-panel plot saved to: {out_name}")
+        if args.max_violations:
+            plot_max_constraint_violation(args.csv, args.deg)
+            plot_max_constraint_violation(args.csv2, args.deg)
+        return
+
+    # Single-CSV mode
     # Auto-detect CSV file if not provided
     if args.csv is None:
         script_dir = os.path.dirname(os.path.abspath(__file__))
