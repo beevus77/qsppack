@@ -20,7 +20,10 @@ from qsppack.utils import cvx_poly_coef
 # Match LaTeX/plotting style used elsewhere in this directory
 plt.rcParams["text.usetex"] = True
 plt.rcParams["font.family"] = "serif"
-plt.rcParams["font.size"] = 12
+plt.rcParams["font.size"] = 14
+plt.rcParams["axes.titlesize"] = 18
+plt.rcParams["axes.labelsize"] = 16
+plt.rcParams["legend.fontsize"] = 14
 
 
 def chebval_dct(c: np.ndarray, M: int) -> np.ndarray:
@@ -273,6 +276,7 @@ def windowed_poly_cheb_coeffs(
     delta: float = 0.01,
     use_p_theta: bool = False,
     p_theta_eps: float = 1e-6,
+    a_window: float | None = None,
 ) -> np.ndarray:
     """
     Chebyshev coefficients of the windowed optimal polynomial: P_opt(x) * W(x).
@@ -283,9 +287,13 @@ def windowed_poly_cheb_coeffs(
     """
     if window_deg is None:
         window_deg = 2 * n
+    # a controls the optimal inversion polynomial; a_window (if provided) controls
+    # only the window location/shape. If a_window is None, use a for both.
+    if a_window is None:
+        a_window = a
     coef_opt = optimal_poly_cheb_coeffs(a, n)
     coef_w = window_cheb_coeffs(
-        a, window_deg, delta, use_p_theta=use_p_theta, p_theta_eps=p_theta_eps
+        a_window, window_deg, delta, use_p_theta=use_p_theta, p_theta_eps=p_theta_eps
     )
     product = cheb.chebmul(coef_opt, coef_w)
     return product
@@ -365,8 +373,7 @@ def _draw_one_plot(
         )
     ax.grid(True, alpha=0.3)
     ax.set_xlim([0, 1])
-    ax.set_ylim([-1.1, 1.1])
-    ax.legend(loc=legend_loc, framealpha=1)
+    ax.legend(loc=legend_loc, framealpha=1, fontsize=14)
     ax.set_xlabel(r"$x$")
     ax.set_title(title)
 
@@ -380,6 +387,7 @@ def plot_optimal_and_retraction(
     delta: float = 0.01,
     use_p_theta: bool = False,
     p_theta_eps: float = 1e-6,
+    a_window: float | None = None,
 ) -> None:
     """
     Plot target a/x (on S(a)), polynomial approximation, and its retraction.
@@ -389,6 +397,8 @@ def plot_optimal_and_retraction(
     If error_plot is True, add aligned error plots |retraction - target| below.
     delta: for window/all methods, window transitions 0->1 on [a - delta, a].
     use_p_theta: if True, build window from P_Θ (ref [21]) instead of smoothstep.
+    a_window: if provided, kappa/`a` used only for the windowed polynomial
+      (location of the window). The optimal polynomial and its fit always use `a`.
     """
     degree = 2 * n - 1
     parity = degree % 2  # 1 for odd polynomial
@@ -406,15 +416,15 @@ def plot_optimal_and_retraction(
         print("Creating plot (both methods)...")
         if error_plot:
             fig = plt.figure(figsize=(14, 8))
-            gs = fig.add_gridspec(2, 2, height_ratios=[3, 1])
+            gs = fig.add_gridspec(2, 2, height_ratios=[3, 2])
             ax_left = fig.add_subplot(gs[0, 0])
             ax_right = fig.add_subplot(gs[0, 1])
             ax_err_left = fig.add_subplot(gs[1, 0], sharex=ax_left)
             # Share y-axis between error plots so scales line up
             ax_err_right = fig.add_subplot(gs[1, 1], sharex=ax_right, sharey=ax_err_left)
             axes = [
-                (ax_left, ax_err_left, "sunderhof", "Optimal + Retraction (deg 101)"),
-                (ax_right, ax_err_right, "cvxpy", "Optimal Constrained + Retraction (deg 101)"),
+                (ax_left, ax_err_left, "sunderhof", "Optimal + Retraction\n(deg 101)"),
+                (ax_right, ax_err_right, "cvxpy", "Optimal Constrained + Retraction\n(deg 101)"),
             ]
             for ax_main, ax_err, m, title in axes:
                 print(f"  Computing coefficients and retraction for {m}...")
@@ -449,12 +459,11 @@ def plot_optimal_and_retraction(
                 ax_err.set_yscale("log")
                 ax_err.grid(True, alpha=0.3)
                 ax_err.set_xlim([0, 1])
-                ax_err.set_xlabel(r"$x$")
+                ax_err.set_xlabel(r"$x$", fontsize=16)
                 # Only label error y-axis on the far-left subplot
                 if ax_err is ax_err_left:
-                    ax_err.set_ylabel("Error")
-            # Hide y-axis ticks/labels on the right column (main and error)
-            ax_right.tick_params(labelleft=False)
+                    ax_err.set_ylabel("Error", fontsize=16)
+            # Hide y-axis ticks/labels on the right error subplot only
             ax_err_right.tick_params(labelleft=False)
             # Hide x-axis tick labels on the top row (shared x with error plots)
             ax_left.tick_params(labelbottom=False)
@@ -466,8 +475,8 @@ def plot_optimal_and_retraction(
         # both, no error plot
         fig, (ax_left, ax_right) = plt.subplots(1, 2, figsize=(14, 6))
         for ax, m, title in [
-            (ax_left, "sunderhof", "Optimal + Retraction (deg 101)"),
-            (ax_right, "cvxpy", "Optimal Constrained + Retraction (deg 101)"),
+            (ax_left, "sunderhof", "Optimal + Retraction\n(deg 101)"),
+            (ax_right, "cvxpy", "Optimal Constrained + Retraction\n(deg 101)"),
         ]:
             print(f"  Computing coefficients and retraction for {m}...")
             coef_full = get_coef_full(a, n, m)
@@ -487,7 +496,7 @@ def plot_optimal_and_retraction(
         deg_label = 2 * n - 1
         if error_plot:
             fig = plt.figure(figsize=(18, 8))
-            gs = fig.add_gridspec(2, 3, height_ratios=[3, 1])
+            gs = fig.add_gridspec(2, 3, height_ratios=[3, 2])
             ax_w = fig.add_subplot(gs[0, 0])
             ax_s = fig.add_subplot(gs[0, 1])
             ax_c = fig.add_subplot(gs[0, 2])
@@ -497,12 +506,13 @@ def plot_optimal_and_retraction(
             # Window (left)
             coef_w = get_coef_full(a, n, "window")
             coef_w_rec = windowed_poly_cheb_coeffs(
-                a, n, delta=delta, use_p_theta=use_p_theta, p_theta_eps=p_theta_eps
+                a, n, delta=delta, use_p_theta=use_p_theta, p_theta_eps=p_theta_eps, a_window=a_window
             )
             _draw_one_plot(
                 ax_w, xlist, targ_value, coef_w, coef_w_rec, M,
-                f"Optimal + Window (deg {2*n-1}+{2*n})", use_windowed_curve=True,
+                f"Optimal + Window\n(deg {2*n-1}+{2*n})", use_windowed_curve=True,
             )
+            ax_w.set_ylim(-0.07, 1.55)
             ax_w.set_xlabel("")
             fit_w = chebval_dct(coef_w, M)
             rec_w = chebval_dct(coef_w_rec, M)
@@ -515,8 +525,8 @@ def plot_optimal_and_retraction(
             ax_err_w.set_yscale("log")
             ax_err_w.grid(True, alpha=0.3)
             ax_err_w.set_xlim([0, 1])
-            ax_err_w.set_xlabel(r"$x$")
-            ax_err_w.set_ylabel("Error")
+            ax_err_w.set_xlabel(r"$x$", fontsize=16)
+            ax_err_w.set_ylabel("Error", fontsize=16)
             # Sunderhof (center)
             coef_s = get_coef_full(a, n, "sunderhof")
             b_s = b_from_cheb(coef_s[parity::2], parity)
@@ -527,10 +537,10 @@ def plot_optimal_and_retraction(
             coef_s_rec[1::2] = new_b_s[int(len(new_b_s) / 2 - 1) :: -1] + new_b_s[int(len(new_b_s) / 2) : :]
             _draw_one_plot(
                 ax_s, xlist, targ_value, coef_s, coef_s_rec, M,
-                f"Optimal + Retraction (deg {deg_label})",
+                f"Optimal + Retraction\n(deg {deg_label})",
             )
+            ax_s.set_ylim(-0.07, 1.55)
             ax_s.set_xlabel("")
-            ax_s.tick_params(labelleft=False)
             fit_s = chebval_dct(coef_s, M)
             rec_s = chebval_dct(coef_s_rec, M)
             err_fit_s = np.full_like(xlist, np.nan, dtype=float)
@@ -542,7 +552,7 @@ def plot_optimal_and_retraction(
             ax_err_s.set_yscale("log")
             ax_err_s.grid(True, alpha=0.3)
             ax_err_s.set_xlim([0, 1])
-            ax_err_s.set_xlabel(r"$x$")
+            ax_err_s.set_xlabel(r"$x$", fontsize=16)
             ax_err_s.tick_params(labelleft=False)
             # CVXPY (right)
             coef_c = get_coef_full(a, n, "cvxpy")
@@ -554,10 +564,10 @@ def plot_optimal_and_retraction(
             coef_c_rec[1::2] = new_b_c[int(len(new_b_c) / 2 - 1) :: -1] + new_b_c[int(len(new_b_c) / 2) : :]
             _draw_one_plot(
                 ax_c, xlist, targ_value, coef_c, coef_c_rec, M,
-                f"Optimal Constrained + Retraction (deg {deg_label})",
+                f"Optimal Constrained + Retraction\n(deg {deg_label})",
             )
+            ax_c.set_ylim(-1.07, 1.07)
             ax_c.set_xlabel("")
-            ax_c.tick_params(labelleft=False)
             fit_c = chebval_dct(coef_c, M)
             rec_c = chebval_dct(coef_c_rec, M)
             err_fit_c = np.full_like(xlist, np.nan, dtype=float)
@@ -569,7 +579,7 @@ def plot_optimal_and_retraction(
             ax_err_c.set_yscale("log")
             ax_err_c.grid(True, alpha=0.3)
             ax_err_c.set_xlim([0, 1])
-            ax_err_c.set_xlabel(r"$x$")
+            ax_err_c.set_xlabel(r"$x$", fontsize=16)
             ax_err_c.tick_params(labelleft=False)
             ax_w.tick_params(labelbottom=False)
             ax_s.tick_params(labelbottom=False)
@@ -580,12 +590,13 @@ def plot_optimal_and_retraction(
             fig, (ax_w, ax_s, ax_c) = plt.subplots(1, 3, figsize=(18, 6))
             coef_w = get_coef_full(a, n, "window")
             coef_w_rec = windowed_poly_cheb_coeffs(
-                a, n, delta=delta, use_p_theta=use_p_theta, p_theta_eps=p_theta_eps
+                a, n, delta=delta, use_p_theta=use_p_theta, p_theta_eps=p_theta_eps, a_window=a_window
             )
             _draw_one_plot(
                 ax_w, xlist, targ_value, coef_w, coef_w_rec, M,
-                f"Optimal + Window (deg {2*n-1}+{2*n})", use_windowed_curve=True,
+                f"Optimal + Window\n(deg {2*n-1}+{2*n})", use_windowed_curve=True,
             )
+            ax_w.set_ylim(-0.07, 1.55)
             coef_s = get_coef_full(a, n, "sunderhof")
             b_s = b_from_cheb(coef_s[parity::2], parity)
             a_s = weiss(b_s, N_weiss)
@@ -595,9 +606,9 @@ def plot_optimal_and_retraction(
             coef_s_rec[1::2] = new_b_s[int(len(new_b_s) / 2 - 1) :: -1] + new_b_s[int(len(new_b_s) / 2) : :]
             _draw_one_plot(
                 ax_s, xlist, targ_value, coef_s, coef_s_rec, M,
-                f"Optimal + Retraction (deg {deg_label})",
+                f"Optimal + Retraction\n(deg {deg_label})",
             )
-            ax_s.tick_params(labelleft=False)
+            ax_s.set_ylim(-0.07, 1.55)
             coef_c = get_coef_full(a, n, "cvxpy")
             b_c = b_from_cheb(coef_c[parity::2], parity)
             a_c = weiss(b_c, N_weiss)
@@ -607,9 +618,9 @@ def plot_optimal_and_retraction(
             coef_c_rec[1::2] = new_b_c[int(len(new_b_c) / 2 - 1) :: -1] + new_b_c[int(len(new_b_c) / 2) : :]
             _draw_one_plot(
                 ax_c, xlist, targ_value, coef_c, coef_c_rec, M,
-                f"Optimal Constrained + Retraction (deg {deg_label})",
+                f"Optimal Constrained + Retraction\n(deg {deg_label})",
             )
-            ax_c.tick_params(labelleft=False)
+            ax_c.set_ylim(-1.07, 1.07)
             plt.tight_layout()
             plt.show()
         return
@@ -618,11 +629,11 @@ def plot_optimal_and_retraction(
         print("Creating plot (window method)...")
         coef_full = get_coef_full(a, n, "window")
         coef_recovered_full = windowed_poly_cheb_coeffs(
-            a, n, delta=delta, use_p_theta=use_p_theta, p_theta_eps=p_theta_eps
+            a, n, delta=delta, use_p_theta=use_p_theta, p_theta_eps=p_theta_eps, a_window=a_window
         )
         if error_plot:
             fig, (ax_main, ax_err) = plt.subplots(
-                2, 1, figsize=(12, 8), sharex=True, height_ratios=[3, 1]
+                2, 1, figsize=(12, 8), sharex=True, height_ratios=[3, 2]
             )
             _draw_one_plot(
                 ax_main,
@@ -647,8 +658,8 @@ def plot_optimal_and_retraction(
             ax_err.set_yscale("log")
             ax_err.grid(True, alpha=0.3)
             ax_err.set_xlim([0, 1])
-            ax_err.set_xlabel(r"$x$")
-            ax_err.set_ylabel("Error")
+            ax_err.set_xlabel(r"$x$", fontsize=16)
+            ax_err.set_ylabel("Error", fontsize=16)
             plt.tight_layout()
             plt.show()
         else:
@@ -679,7 +690,7 @@ def plot_optimal_and_retraction(
     if error_plot:
         print("Creating plot with error subplot...")
         fig, (ax_main, ax_err) = plt.subplots(
-            2, 1, figsize=(12, 8), sharex=True, height_ratios=[3, 1]
+            2, 1, figsize=(12, 8), sharex=True, height_ratios=[3, 2]
         )
         _draw_one_plot(ax_main, xlist, targ_value, coef_full, coef_recovered_full, M, "")
         # Suppress x-label on top plot when error subplot is present
@@ -696,8 +707,8 @@ def plot_optimal_and_retraction(
         ax_err.set_yscale("log")
         ax_err.grid(True, alpha=0.3)
         ax_err.set_xlim([0, 1])
-        ax_err.set_xlabel(r"$x$")
-        ax_err.set_ylabel("Error")
+        ax_err.set_xlabel(r"$x$", fontsize=16)
+        ax_err.set_ylabel("Error", fontsize=16)
         plt.tight_layout()
         plt.show()
         return
@@ -757,6 +768,15 @@ def main() -> None:
         help="For window/all: window transitions 0->1 on [a - delta, a] (default: 0.01).",
     )
     parser.add_argument(
+        "--a-window",
+        type=float,
+        default=0.095,
+        help=(
+            "Optional kappa/`a` parameter used only for the windowed polynomial "
+            "(location of the window). Default: 0.095."
+        ),
+    )
+    parser.add_argument(
         "--use-p-theta",
         action="store_true",
         help="Build window from P_Θ (ref [21], erf-based step) instead of smoothstep.",
@@ -781,7 +801,8 @@ def main() -> None:
     print(
         f"Using a={args.a}, n={args.n} (degree d={2*args.n-1}), N_weiss={args.N_weiss}, "
         f"method={args.method}, error_plot={args.error_plot}, delta={args.delta}, "
-        f"use_p_theta={args.use_p_theta}, p_theta_eps={args.p_theta_eps}."
+        f"use_p_theta={args.use_p_theta}, p_theta_eps={args.p_theta_eps}, "
+        f"a_window={args.a_window}."
     )
     plot_optimal_and_retraction(
         args.a,
@@ -792,6 +813,7 @@ def main() -> None:
         delta=args.delta,
         use_p_theta=args.use_p_theta,
         p_theta_eps=args.p_theta_eps,
+        a_window=args.a_window,
     )
 
 
