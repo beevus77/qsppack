@@ -14,7 +14,9 @@ This script now serves two roles:
     - the corresponding pointwise errors
 
 Data are written to:
-  explorations/recovery/data/degree_scaling_thresh_proj.csv
+  explorations/recovery/data/degree_scaling_thresh_proj_1x.csv  (single: npts = degree)
+  explorations/recovery/data/degree_scaling_thresh_proj_2x.csv (double: npts = 2*degree)
+  explorations/recovery/data/degree_scaling_thresh_proj_npts{k}.csv (when --npts N is set; k = int(log2(N)))
 
 The main execution path:
   - checks whether the CSV already exists and contains all requested degrees
@@ -27,7 +29,7 @@ import csv
 import json
 import os
 import time
-from typing import Dict, Tuple, List
+from typing import Dict, List, Optional, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -110,6 +112,7 @@ def run_single_degree(
     show_polynomial_plots: bool = False,
     show_error_plots: bool = False,
     npts_factor: float = 1.0,
+    npts_exact: Optional[int] = None,
 ) -> Dict[str, object]:
     """
     Run the fitting + QSP retraction for a single degree.
@@ -121,7 +124,7 @@ def run_single_degree(
       - coef_full, coef, phi_proc
     """
     parity = deg % 2
-    npts = int(npts_factor * deg)
+    npts = int(npts_exact) if npts_exact is not None else int(npts_factor * deg)
 
     opts_fit = {
         "intervals": [0, 0.5 - DELTA, 0.5 + DELTA, 1],
@@ -205,6 +208,7 @@ def generate_data(
     show_polynomial_plots: bool = False,
     show_error_plots: bool = False,
     npts_factor: float = 1.0,
+    npts_exact: Optional[int] = None,
 ) -> None:
     """
     Generate / append data for the degree sweep and write to CSV.
@@ -273,7 +277,8 @@ def generate_data(
             if deg not in degrees_to_run:
                 continue
 
-            print(f"degree = {deg} (2^{exp2:.1f}), npts = {int(npts_factor * deg)}")
+            npts_used = int(npts_exact) if npts_exact is not None else int(npts_factor * deg)
+            print(f"degree = {deg} (2^{exp2:.1f}), npts = {npts_used}")
             result = run_single_degree(
                 deg,
                 N_weiss=2**14,
@@ -281,6 +286,7 @@ def generate_data(
                 show_polynomial_plots=show_polynomial_plots,
                 show_error_plots=show_error_plots,
                 npts_factor=npts_factor,
+                npts_exact=npts_exact,
             )
 
             phi_arr = np.asarray(result["phi_proc"])
@@ -518,7 +524,7 @@ def main() -> None:
         default=None,
         help=(
             "Output CSV path "
-            "(default: explorations/recovery/data/degree_scaling_thresh_proj.csv)."
+            "(default: degree_scaling_thresh_proj_1x.csv, _2x.csv, or _nptsN.csv)."
         ),
     )
     parser.add_argument(
@@ -527,7 +533,7 @@ def main() -> None:
         default=None,
         help=(
             "Output figure path "
-            "(default: explorations/recovery/figures/degree_scaling_thresh_proj.pdf)."
+            "(default: degree_scaling_thresh_proj_1x.pdf, _2x.pdf, or _nptsN.pdf)."
         ),
     )
     parser.add_argument(
@@ -573,6 +579,17 @@ def main() -> None:
         action="store_true",
         help="Omit the largest degree from the summary plot (keeps data intact).",
     )
+    parser.add_argument(
+        "--npts",
+        type=int,
+        default=None,
+        metavar="N",
+        help=(
+            "Use this exact number of convex-optimization points for every degree "
+            "(overrides plotting-mode: single/double). "
+            "Filename uses k = int(log2(N)), e.g. --npts 256 -> degree_scaling_thresh_proj_npts8.csv."
+        ),
+    )
     args = parser.parse_args()
 
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -589,19 +606,47 @@ def main() -> None:
             "--csv cannot be used with --plotting-mode=both. "
             "Use the default CSV locations for single and double runs instead."
         )
+    if args.npts is not None and mode == "both":
+        raise ValueError(
+            "--npts cannot be used with --plotting-mode=both."
+        )
 
     # Paths for single- and double-points CSVs/figures (used depending on mode).
     os.makedirs(data_dir, exist_ok=True)
     os.makedirs(figures_dir, exist_ok=True)
 
-    base_csv_single = os.path.join(data_dir, "degree_scaling_thresh_proj.csv")
+    base_csv_single = os.path.join(data_dir, "degree_scaling_thresh_proj_1x.csv")
     base_csv_double = os.path.join(data_dir, "degree_scaling_thresh_proj_2x.csv")
-    base_fig_single = os.path.join(figures_dir, "degree_scaling_thresh_proj.pdf")
+    base_fig_single = os.path.join(figures_dir, "degree_scaling_thresh_proj_1x.pdf")
     base_fig_double = os.path.join(figures_dir, "degree_scaling_thresh_proj_2x.pdf")
     base_fig_both = os.path.join(figures_dir, "degree_scaling_thresh_proj_both.pdf")
 
-    # Determine which CSV/figure paths to use for this run.
-    if mode in ("single", "double"):
+    # Exact npts override: one CSV/fig per npts value (name uses log2(npts) as in fgt_polynomial_space).
+    if args.npts is not None:
+        npts_exp = int(np.log2(args.npts))
+        if args.csv is None:
+            csv_path = os.path.join(data_dir, f"degree_scaling_thresh_proj_npts{npts_exp}.csv")
+        else:
+            csv_path = args.csv
+        if args.output is None:
+            fig_path = os.path.join(figures_dir, f"degree_scaling_thresh_proj_npts{npts_exp}.pdf")
+        else:
+            fig_path = args.output
+            out_dir = os.path.dirname(os.path.abspath(fig_path))
+            if out_dir:
+                os.makedirs(out_dir, exist_ok=True)
+        generate_data(
+            csv_path,
+            force=args.force,
+            show_polynomial_plots=args.per_degree_plots,
+            show_error_plots=args.per_degree_plots,
+            npts_exact=args.npts,
+        )
+        if not args.no_summary_plot:
+            plot_summary(csv_path, fig_path, leave_out_last=args.leave_out_last)
+
+    # Mode-based paths (single = 1x, double = 2x).
+    elif mode in ("single", "double"):
         if args.csv is None:
             csv_path = base_csv_single if mode == "single" else base_csv_double
         else:
