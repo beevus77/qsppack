@@ -33,6 +33,8 @@ from typing import Dict, List, Optional, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.ticker import FixedLocator, NullLocator
+from scipy.fft import dct
 
 from qsppack.solver import solve
 from qsppack.utils import cvx_poly_coef, chebyshev_to_func, get_entry
@@ -42,6 +44,30 @@ BLUE = "#0072B2"
 MAIZE = "#E69F00"
 
 DELTA = 0.05
+
+# Number of Chebyshev nodes for constraint check (|p(x)| <= 1 on [-1, 1])
+M_CHEB_CONSTRAINT = 1_000_000
+
+
+def chebval_dct(c: np.ndarray, M: int) -> np.ndarray:
+    """
+    Evaluate Chebyshev series with full coefficients c at M Chebyshev nodes.
+
+    Nodes: x_j = cos(j*pi/(M-1)), j=0..M-1.
+    Implementation: zero-pad coefficients to length M and apply DCT-I.
+    Returns array of length M with values at the Chebyshev nodes.
+    """
+    if M < 2:
+        raise ValueError("M must be >= 2 for DCT-I evaluation")
+    c = np.asarray(c, dtype=float)
+    if len(c) > M:
+        raise ValueError("Number of coefficients exceeds desired number of samples M")
+    c_pad = np.zeros(M, dtype=float)
+    c_pad[: len(c)] = c
+    # DCT-I synthesis expects half-scaled interior coefficients
+    if M > 2:
+        c_pad[1 : M - 1] *= 0.5
+    return dct(c_pad, type=1, norm=None)
 
 
 def target(x: np.ndarray) -> np.ndarray:
@@ -121,6 +147,7 @@ def run_single_degree(
       - degree, parity, npts, N_weiss
       - time_fit, time_qsp
       - max_error_poly, max_error_qsp
+      - constraint_violated (True if |p(x)| > 1 at Chebyshev nodes)
       - coef_full, coef, phi_proc
     """
     parity = deg % 2
@@ -177,6 +204,18 @@ def run_single_degree(
     max_error_poly = float(np.max(abs_err_poly[mask]))
     max_error_qsp = float(np.max(abs_err_qsp[mask]))
 
+    # Constraint check: non-retracted polynomial must satisfy |p(x)| <= 1 on [-1, 1]
+    # Evaluate via DCT-I at Chebyshev nodes (same as plot_recovery_conv_polynomial_space)
+    M_cheb = M_CHEB_CONSTRAINT
+    try:
+        vals_coef = chebval_dct(coef_full, M_cheb)
+        max_abs_coef = float(np.max(np.abs(vals_coef))) - 1.0
+    except MemoryError:
+        M_cheb = 100_000
+        vals_coef = chebval_dct(coef_full, M_cheb)
+        max_abs_coef = float(np.max(np.abs(vals_coef))) - 1.0
+    constraint_violated = max_abs_coef > 0.0
+
     if show_polynomial_plots or show_error_plots:
         plot_polynomials_and_errors(
             xlist,
@@ -196,6 +235,7 @@ def run_single_degree(
         "time_qsp": float(time_qsp),
         "max_error_poly": max_error_poly,
         "max_error_qsp": max_error_qsp,
+        "constraint_violated": constraint_violated,
         "coef_full": coef_full,
         "coef": coef,
         "phi_proc": np.asarray(phi_proc),
@@ -252,6 +292,7 @@ def generate_data(
         "time_qsp",
         "max_error_poly",
         "max_error_qsp",
+        "constraint_violated",
         "coef",
         "coef_full",
         "phi_proc",
@@ -310,6 +351,7 @@ def generate_data(
                 "time_qsp": float(result["time_qsp"]),
                 "max_error_poly": float(result["max_error_poly"]),
                 "max_error_qsp": float(result["max_error_qsp"]),
+                "constraint_violated": bool(result["constraint_violated"]),
                 "coef": json.dumps(np.asarray(result["coef"]).tolist()),
                 "coef_full": json.dumps(np.asarray(result["coef_full"]).tolist()),
                 "phi_proc": json.dumps(phi_real.tolist()),
@@ -321,13 +363,43 @@ def generate_data(
     print(f"Data written to: {csv_path}")
 
 
+def _parse_constraint_violated(val) -> Optional[bool]:
+    """Parse constraint_violated from CSV (bool or string 'True'/'False'). Returns None if missing/NaN (need to compute)."""
+    if val is None or (isinstance(val, float) and np.isnan(val)):
+        return None
+    if isinstance(val, bool):
+        return val
+    s = str(val).strip().lower()
+    if s in ("true", "1"):
+        return True
+    if s in ("false", "0"):
+        return False
+    return None
+
+
+def _constraint_violated_from_row(row, M_cheb: int = 1_000_000) -> bool:
+    """Compute constraint_violated from coef_full in a CSV row (no CSV write)."""
+    coef_full = np.array(json.loads(row["coef_full"]), dtype=float)
+    try:
+        vals = chebval_dct(coef_full, M_cheb)
+    except MemoryError:
+        vals = chebval_dct(coef_full, 100_000)
+    return (np.max(np.abs(vals)) - 1.0) > 0.0
+
+
 def plot_summary(
     csv_path: str,
     fig_path: str,
     leave_out_last: bool = False,
+    max_exp: Optional[int] = None,
 ) -> None:
-    """Plot degree (log) vs max error (log) for fit and QSP."""
+    """Plot degree (log) vs max error (log) for fit and QSP.
+    Polynomial: x if constraint violated, o (larger) if satisfied. Retraction: o (larger).
+    Does not write to CSV (does not overwrite existing data).
+    If max_exp is set (e.g. 8), only plot degrees with exp2 <= max_exp (degree <= 2^max_exp).
+    """
     import pandas as pd
+    from matplotlib.lines import Line2D
 
     if not os.path.exists(csv_path):
         raise FileNotFoundError(f"CSV file not found: {csv_path}")
@@ -338,9 +410,29 @@ def plot_summary(
     if "max_error_poly" not in data.columns or "max_error_qsp" not in data.columns:
         raise ValueError("CSV must contain 'max_error_poly' and 'max_error_qsp' columns.")
 
+    # Build constraint_violated: use CSV value when present, else compute from coef_full (no CSV write).
+    # Build as list to avoid assigning bool into float64 column (FutureWarning).
+    if "constraint_violated" not in data.columns:
+        data["constraint_violated"] = None  # placeholder
+    constraint_violated_list = []
+    for idx, row in data.iterrows():
+        cached = _parse_constraint_violated(row.get("constraint_violated"))
+        if cached is not None:
+            constraint_violated_list.append(cached)
+        elif "coef_full" in row and pd.notna(row.get("coef_full")):
+            constraint_violated_list.append(_constraint_violated_from_row(row))
+        else:
+            constraint_violated_list.append(False)
+    data["constraint_violated"] = constraint_violated_list
+
     data = data.sort_values("degree").reset_index(drop=True)
     if leave_out_last and len(data) > 0:
         data = data.iloc[:-1, :].reset_index(drop=True)
+    if max_exp is not None:
+        if "exp2" not in data.columns:
+            data = data[data["degree"] <= 2**max_exp].reset_index(drop=True)
+        else:
+            data = data[data["exp2"] <= max_exp].reset_index(drop=True)
     degrees = data["degree"].to_numpy(dtype=float)
     exponents = (
         data["exp2"].to_numpy(dtype=float)
@@ -349,6 +441,7 @@ def plot_summary(
     )
     err_poly = data["max_error_poly"].to_numpy(dtype=float)
     err_qsp = data["max_error_qsp"].to_numpy(dtype=float)
+    constraint_violated = data["constraint_violated"].to_numpy(dtype=bool)
 
     # Clamp to positive for log scale
     degrees_clamped = np.where(degrees > 0.0, degrees, 1e-16)
@@ -359,34 +452,82 @@ def plot_summary(
     plt.rcParams["font.size"] = 12
 
     fig, ax = plt.subplots(figsize=(8, 6))
-    ax.plot(
-        degrees_clamped,
-        err_poly_clamped,
-        marker="x",
-        color=BLUE,
-        linewidth=2,
-        markersize=8,
-        label="Polynomial max error",
-    )
-    ax.plot(
-        degrees_clamped,
-        err_qsp_clamped,
-        marker="o",
-        color=MAIZE,
-        linewidth=2,
-        markersize=6,
-        label="Retracted polynomial max error",
-    )
+    # Polynomial: x if violated, o (slightly bigger) if satisfied
+    for i in range(len(degrees_clamped)):
+        if constraint_violated[i]:
+            ax.plot(
+                degrees_clamped[i],
+                err_poly_clamped[i],
+                "x",
+                color=BLUE,
+                markersize=8,
+                markeredgewidth=2,
+            )
+        else:
+            ax.plot(
+                degrees_clamped[i],
+                err_poly_clamped[i],
+                "o",
+                color=BLUE,
+                markersize=7,
+                markeredgewidth=1,
+                fillstyle="none",
+            )
+        ax.plot(
+            degrees_clamped[i],
+            err_qsp_clamped[i],
+            "o",
+            color=MAIZE,
+            markersize=5,
+            markeredgewidth=1,
+            fillstyle="none",
+        )
+    ax.plot(degrees_clamped, err_poly_clamped, "k--", alpha=0.7, linewidth=1)
+    ax.plot(degrees_clamped, err_qsp_clamped, "k--", alpha=0.7, linewidth=1)
 
     ax.set_xscale("log")
     ax.set_yscale("log")
     ax.set_xlabel("Polynomial degree")
     ax.set_ylabel("Maximum error vs target")
-    # Use ticks at the sampled degrees and label them as powers of two.
+    # Only show ticks/labels at our data points (integer and half-integer powers of 2)
+    ax.xaxis.set_major_locator(FixedLocator(degrees_clamped))
+    ax.xaxis.set_minor_locator(NullLocator())
     ax.set_xticks(degrees_clamped)
     ax.set_xticklabels([rf"$2^{{{e:g}}}$" for e in exponents])
     ax.grid(True, which="both", alpha=0.3)
-    ax.legend(loc="best")
+    legend_elements = [
+        Line2D(
+            [0],
+            [0],
+            marker="x",
+            color=BLUE,
+            linestyle="None",
+            markersize=8,
+            markeredgewidth=2,
+            label="Polynomial max error (constraints violated)",
+        ),
+        Line2D(
+            [0],
+            [0],
+            marker="o",
+            color=BLUE,
+            linestyle="None",
+            markersize=7,
+            fillstyle="none",
+            label="Polynomial max error (constraints satisfied)",
+        ),
+        Line2D(
+            [0],
+            [0],
+            marker="o",
+            color=MAIZE,
+            linestyle="None",
+            markersize=5,
+            fillstyle="none",
+            label="Retracted polynomial max error",
+        ),
+    ]
+    ax.legend(handles=legend_elements, loc="best")
 
     fig.tight_layout()
     fig.savefig(fig_path, bbox_inches="tight")
@@ -398,9 +539,15 @@ def plot_summary_both(
     csv_double: str,
     fig_path: str,
     leave_out_last: bool = False,
+    max_exp: Optional[int] = None,
 ) -> None:
-    """Plot degree vs max error for both npts=deg and npts=2*deg on one figure."""
+    """Plot degree vs max error for both npts=deg and npts=2*deg on one figure.
+    Polynomial: x if constraint violated, o (larger) if satisfied. Retraction: o (larger).
+    Does not write to CSV (does not overwrite existing data).
+    If max_exp is set (e.g. 8), only plot degrees with exp2 <= max_exp (degree <= 2^max_exp).
+    """
     import pandas as pd
+    from matplotlib.lines import Line2D
 
     if not os.path.exists(csv_single):
         raise FileNotFoundError(f"CSV file not found for single-points data: {csv_single}")
@@ -418,11 +565,33 @@ def plot_summary_both(
                 f"CSV for {name}-points data is missing required columns: {missing}"
             )
 
+    # Build constraint_violated for each dataset (no CSV write); avoid bool-in-float column
+    for data in (data1, data2):
+        if "constraint_violated" not in data.columns:
+            data["constraint_violated"] = None
+        lst = []
+        for idx, row in data.iterrows():
+            cached = _parse_constraint_violated(row.get("constraint_violated"))
+            if cached is not None:
+                lst.append(cached)
+            elif "coef_full" in row and pd.notna(row.get("coef_full")):
+                lst.append(_constraint_violated_from_row(row))
+            else:
+                lst.append(False)
+        data["constraint_violated"] = lst
+
     data1 = data1.sort_values("degree").reset_index(drop=True)
     data2 = data2.sort_values("degree").reset_index(drop=True)
     if leave_out_last and len(data1) > 0 and len(data2) > 0:
         data1 = data1.iloc[:-1, :].reset_index(drop=True)
         data2 = data2.iloc[:-1, :].reset_index(drop=True)
+    if max_exp is not None:
+        if "exp2" in data1.columns:
+            data1 = data1[data1["exp2"] <= max_exp].reset_index(drop=True)
+            data2 = data2[data2["exp2"] <= max_exp].reset_index(drop=True)
+        else:
+            data1 = data1[data1["degree"] <= 2**max_exp].reset_index(drop=True)
+            data2 = data2[data2["degree"] <= 2**max_exp].reset_index(drop=True)
 
     degrees1 = data1["degree"].to_numpy(dtype=float)
     degrees2 = data2["degree"].to_numpy(dtype=float)
@@ -437,6 +606,8 @@ def plot_summary_both(
     err_qsp_single = data1["max_error_qsp"].to_numpy(dtype=float)
     err_poly_double = data2["max_error_poly"].to_numpy(dtype=float)
     err_qsp_double = data2["max_error_qsp"].to_numpy(dtype=float)
+    violated_single = data1["constraint_violated"].to_numpy(dtype=bool)
+    violated_double = data2["constraint_violated"].to_numpy(dtype=bool)
 
     # Clamp to positive for log scale
     degrees_clamped = np.where(degrees > 0.0, degrees, 1e-16)
@@ -456,60 +627,119 @@ def plot_summary_both(
 
     fig, ax = plt.subplots(figsize=(8, 6))
 
-    # Polynomial max error: blue
-    ax.plot(
-        degrees_clamped,
-        err_poly_single_clamped,
-        marker="x",
-        color=BLUE,
-        linewidth=2,
-        markersize=8,
-        label="Polynomial max error (npts = degree)",
-    )
-    ax.plot(
-        degrees_clamped,
-        err_poly_double_clamped,
-        marker="o",
-        markerfacecolor="none",
-        color=BLUE,
-        linewidth=2,
-        markersize=6,
-        label="Polynomial max error (npts = 2·degree)",
-    )
-
-    # Retracted polynomial max error: maize
-    ax.plot(
-        degrees_clamped,
-        err_qsp_single_clamped,
-        marker="x",
-        color=MAIZE,
-        linewidth=2,
-        markersize=8,
-        label="Retracted polynomial max error (npts = degree)",
-    )
-    ax.plot(
-        degrees_clamped,
-        err_qsp_double_clamped,
-        marker="o",
-        markerfacecolor="none",
-        color=MAIZE,
-        linewidth=2,
-        markersize=6,
-        label="Retracted polynomial max error (npts = 2·degree)",
-    )
+    # Polynomial max error: blue — x if violated, o if satisfied
+    for i in range(len(degrees_clamped)):
+        if violated_single[i]:
+            ax.plot(
+                degrees_clamped[i],
+                err_poly_single_clamped[i],
+                "x",
+                color=BLUE,
+                markersize=8,
+                markeredgewidth=2,
+            )
+        else:
+            ax.plot(
+                degrees_clamped[i],
+                err_poly_single_clamped[i],
+                "o",
+                color=BLUE,
+                markersize=7,
+                markeredgewidth=1,
+                fillstyle="none",
+            )
+        if violated_double[i]:
+            ax.plot(
+                degrees_clamped[i],
+                err_poly_double_clamped[i],
+                "x",
+                color=BLUE,
+                markersize=8,
+                markeredgewidth=2,
+            )
+        else:
+            ax.plot(
+                degrees_clamped[i],
+                err_poly_double_clamped[i],
+                "o",
+                color=BLUE,
+                markersize=7,
+                markeredgewidth=1,
+                fillstyle="none",
+            )
+        ax.plot(
+            degrees_clamped[i],
+            err_qsp_single_clamped[i],
+            "o",
+            color=MAIZE,
+            markersize=5,
+            markeredgewidth=1,
+            fillstyle="none",
+        )
+        ax.plot(
+            degrees_clamped[i],
+            err_qsp_double_clamped[i],
+            "o",
+            color=MAIZE,
+            markersize=5,
+            markeredgewidth=1,
+            fillstyle="none",
+        )
+    ax.plot(degrees_clamped, err_poly_single_clamped, "k--", alpha=0.7, linewidth=1)
+    ax.plot(degrees_clamped, err_poly_double_clamped, "k--", alpha=0.7, linewidth=1)
+    ax.plot(degrees_clamped, err_qsp_single_clamped, "k-.", alpha=0.7, linewidth=1)
+    ax.plot(degrees_clamped, err_qsp_double_clamped, "k-.", alpha=0.7, linewidth=1)
 
     ax.set_xscale("log")
     ax.set_yscale("log")
     ax.set_xlabel("Polynomial degree")
     ax.set_ylabel("Maximum error vs target")
+    # Only show ticks/labels at our data points (integer and half-integer powers of 2)
+    ax.xaxis.set_major_locator(FixedLocator(degrees_clamped))
+    ax.xaxis.set_minor_locator(NullLocator())
     ax.set_xticks(degrees_clamped)
     ax.set_xticklabels([rf"$2^{{{e:g}}}$" for e in exponents])
     ax.grid(True, which="both", alpha=0.3)
-    ax.legend(loc="best")
+    legend_elements = [
+        Line2D(
+            [0],
+            [0],
+            marker="x",
+            color=BLUE,
+            linestyle="None",
+            markersize=8,
+            markeredgewidth=2,
+            label="Polynomial (constraints violated)",
+        ),
+        Line2D(
+            [0],
+            [0],
+            marker="o",
+            color=BLUE,
+            linestyle="None",
+            markersize=7,
+            fillstyle="none",
+            label="Polynomial (constraints satisfied)",
+        ),
+        Line2D(
+            [0],
+            [0],
+            marker="o",
+            color=MAIZE,
+            linestyle="None",
+            markersize=5,
+            fillstyle="none",
+            label="Retracted polynomial",
+        ),
+        Line2D([0], [0], linestyle="--", color="k", label="npts = degree"),
+        Line2D([0], [0], linestyle="-.", color="k", label="npts = 2·degree"),
+    ]
+    ax.legend(handles=legend_elements, loc="best")
 
     fig.tight_layout()
     fig.savefig(fig_path, bbox_inches="tight")
     print(f"Figure saved to: {fig_path}")
+
 
 def main() -> None:
     parser = argparse.ArgumentParser(
@@ -590,6 +820,16 @@ def main() -> None:
             "Filename uses k = int(log2(N)), e.g. --npts 256 -> degree_scaling_thresh_proj_npts8.csv."
         ),
     )
+    parser.add_argument(
+        "--max-exp",
+        type=int,
+        default=None,
+        metavar="K",
+        help=(
+            "When plotting, only include degrees with exp2 <= K (degree <= 2^K). "
+            "E.g. --max-exp 8 plots up to 2^8 (256) instead of 2^9."
+        ),
+    )
     args = parser.parse_args()
 
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -643,7 +883,12 @@ def main() -> None:
             npts_exact=args.npts,
         )
         if not args.no_summary_plot:
-            plot_summary(csv_path, fig_path, leave_out_last=args.leave_out_last)
+            plot_summary(
+                csv_path,
+                fig_path,
+                leave_out_last=args.leave_out_last,
+                max_exp=args.max_exp,
+            )
 
     # Mode-based paths (single = 1x, double = 2x).
     elif mode in ("single", "double"):
@@ -673,7 +918,12 @@ def main() -> None:
         # If data already existed and user only wants the figure, generate_data()
         # will be cheap and will not rerun expensive optimization.
         if not args.no_summary_plot:
-            plot_summary(csv_path, fig_path, leave_out_last=args.leave_out_last)
+            plot_summary(
+                csv_path,
+                fig_path,
+                leave_out_last=args.leave_out_last,
+                max_exp=args.max_exp,
+            )
 
     elif mode == "both":
         # No data generation in 'both' mode: we reuse existing single/double CSVs.
@@ -688,6 +938,7 @@ def main() -> None:
                 base_csv_double,
                 fig_path,
                 leave_out_last=args.leave_out_last,
+                max_exp=args.max_exp,
             )
 
 
