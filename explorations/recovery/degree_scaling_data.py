@@ -10,7 +10,8 @@ runs QSP retraction, and writes max error vs target (and constraint checks) to C
 Data are written to:
   explorations/recovery/data/degree_scaling_{problem_type}_npts{k}.csv
 
-where k = int(log2(N)). Supports --problem-type mat_inv and uniform_sv_amp.
+where k = int(log2(N)). With ``--solver2``, the basename gets ``_solver2`` and cvx_poly_coef uses OSQP
+instead of CLARABEL. Supports --problem-type mat_inv and uniform_sv_amp.
 """
 
 import argparse
@@ -74,6 +75,8 @@ def run_single_degree(
     epsil: float,
     N_weiss: int = 2**14,
     n_xplot: int = 1000,
+    cvx_solver: Optional[str] = None,
+    cvx_verbose: bool = False,
 ) -> Dict[str, object]:
     """
     Run the fitting + QSP retraction for a single degree.
@@ -97,6 +100,10 @@ def run_single_degree(
         "isplot": False,
         "method": "cvxpy",
     }
+    if cvx_solver is not None:
+        opts_fit["solver"] = cvx_solver
+    if cvx_verbose:
+        opts_fit["verbose"] = True
 
     t0 = time.time()
     coef_full = cvx_poly_coef(target, deg, opts_fit)
@@ -184,6 +191,8 @@ def generate_data(
     epsil: float = 0.0,
     N_weiss: int = 2**14,
     force: bool = False,
+    cvx_solver: Optional[str] = None,
+    cvx_verbose: bool = False,
 ) -> None:
     """
     Generate / append data for the degree sweep and write to CSV.
@@ -239,6 +248,8 @@ def generate_data(
 
     print(f"Generating degree-scaling data for {problem_type} (a={a}, epsil={epsil})")
     print(f"  CSV path = {csv_path}")
+    if cvx_solver is not None:
+        print(f"  cvx_poly_coef solver = {cvx_solver}")
     print(f"  npts = {npts}")
     print(f"  degrees = {degrees_all}")
     if resuming:
@@ -265,6 +276,8 @@ def generate_data(
                 npts=npts,
                 epsil=epsil,
                 N_weiss=N_weiss,
+                cvx_solver=cvx_solver,
+                cvx_verbose=cvx_verbose,
             )
 
             phi_arr = np.asarray(result["phi_proc"])
@@ -345,12 +358,28 @@ def main() -> None:
         "--csv",
         type=str,
         default=None,
-        help="Output CSV path (default: data/degree_scaling_{problem_type}_npts{k}.csv).",
+        help=(
+            "Output CSV path (default: data/degree_scaling_{problem_type}_npts{k}.csv). "
+            "With --solver2, _solver2 is inserted before the extension."
+        ),
     )
     parser.add_argument(
         "--force",
         action="store_true",
         help="Force full regeneration of data, even if CSV already exists.",
+    )
+    parser.add_argument(
+        "--solver2",
+        action="store_true",
+        help=(
+            "Use OSQP for cvx_poly_coef (instead of default CLARABEL). "
+            "Appends _solver2 to the CSV basename so default runs are unchanged."
+        ),
+    )
+    parser.add_argument(
+        "--verbose",
+        action="store_true",
+        help="Pass verbose=True to cvx_poly_coef's CVXPY solve (does not change output paths).",
     )
     args = parser.parse_args()
 
@@ -363,12 +392,16 @@ def main() -> None:
 
     npts_exp = int(np.log2(args.npts))
     if args.csv is None:
-        csv_path = os.path.join(
-            data_dir,
-            f"degree_scaling_{args.problem_type}_npts{npts_exp}.csv",
-        )
+        base = f"degree_scaling_{args.problem_type}_npts{npts_exp}"
+        if args.solver2:
+            base += "_solver2"
+        csv_path = os.path.join(data_dir, f"{base}.csv")
     else:
-        csv_path = args.csv
+        if args.solver2:
+            root, ext = os.path.splitext(args.csv)
+            csv_path = root + "_solver2" + (ext if ext else ".csv")
+        else:
+            csv_path = args.csv
 
     generate_data(
         problem_type=args.problem_type,
@@ -378,6 +411,8 @@ def main() -> None:
         epsil=args.epsilon,
         N_weiss=args.N,
         force=args.force,
+        cvx_solver="OSQP" if args.solver2 else None,
+        cvx_verbose=args.verbose,
     )
 
 

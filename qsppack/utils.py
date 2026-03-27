@@ -255,6 +255,8 @@ def cvx_poly_coef(func, deg, opts):
     opts.setdefault('isplot', False)
     opts.setdefault('objnorm', np.inf)
     opts.setdefault('method', 'SLSQP')
+    opts.setdefault('solver', 'CLARABEL')
+    opts.setdefault('verbose', False)
 
     # Check variables and assign local variables
     assert len(opts['intervals']) % 2 == 0
@@ -312,7 +314,7 @@ def cvx_poly_coef(func, deg, opts):
             y >= -(1-epsil)
         ]
         problem = cp.Problem(objective, constraints)
-        problem.solve()
+        problem.solve(solver=opts['solver'], verbose=opts['verbose'])
         coef = c.value
 
     elif opts['method'] == 'linprog':
