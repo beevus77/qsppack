@@ -43,6 +43,10 @@ from qsppack.utils import cvx_poly_coef, chebyshev_to_func, get_entry
 BLUE = "#0072B2"
 MAIZE = "#E69F00"
 
+# Marker sizes for 2-norm polynomial-space plots (BLUE = fit, MAIZE = retraction)
+MARKERSIZE_BLUE_X = 10  # 'x' when constraints violated
+MARKERSIZE_BLUE_O = 8  # 'o' when constraints satisfied
+MARKERSIZE_MAIZE_O = 12  # retraction (open circles)
 DELTA = 0.05
 
 # Number of Chebyshev nodes for constraint check (|p(x)| <= 1 on [-1, 1])
@@ -460,7 +464,7 @@ def plot_summary(
                 err_poly_clamped[i],
                 "x",
                 color=BLUE,
-                markersize=8,
+                markersize=MARKERSIZE_BLUE_X,
                 markeredgewidth=2,
             )
         else:
@@ -469,7 +473,7 @@ def plot_summary(
                 err_poly_clamped[i],
                 "o",
                 color=BLUE,
-                markersize=7,
+                markersize=MARKERSIZE_BLUE_O,
                 markeredgewidth=1,
                 fillstyle="none",
             )
@@ -478,7 +482,7 @@ def plot_summary(
             err_qsp_clamped[i],
             "o",
             color=MAIZE,
-            markersize=5,
+            markersize=MARKERSIZE_MAIZE_O,
             markeredgewidth=1,
             fillstyle="none",
         )
@@ -707,7 +711,7 @@ def plot_summary_both(
             marker="x",
             color=BLUE,
             linestyle="None",
-            markersize=8,
+            markersize=MARKERSIZE_BLUE_X,
             markeredgewidth=2,
             label="Polynomial (constraints violated)",
         ),
@@ -717,7 +721,7 @@ def plot_summary_both(
             marker="o",
             color=BLUE,
             linestyle="None",
-            markersize=7,
+            markersize=MARKERSIZE_BLUE_O,
             fillstyle="none",
             label="Polynomial (constraints satisfied)",
         ),
@@ -727,7 +731,7 @@ def plot_summary_both(
             marker="o",
             color=MAIZE,
             linestyle="None",
-            markersize=5,
+            markersize=MARKERSIZE_MAIZE_O,
             fillstyle="none",
             label="Retracted polynomial",
         ),

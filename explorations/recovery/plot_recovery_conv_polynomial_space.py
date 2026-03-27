@@ -27,6 +27,11 @@ plt.rcParams['legend.fontsize'] = 14
 BLUE = "#0072B2"
 MAIZE = "#E69F00"
 
+# Marker sizes for 2-norm polynomial-space plots (BLUE = fit, MAIZE = retraction)
+MARKERSIZE_POLY_BLUE_X = 10  # 'x' when constraints violated
+MARKERSIZE_POLY_BLUE_O = 8  # 'o' when constraints satisfied
+MARKERSIZE_POLY_MAIZE_O = 12  # retraction (open circles)
+
 
 def get_epsilon_title_from_csv_path(csv_path):
     """
@@ -301,16 +306,16 @@ def plot_recovery_convergence_polyspace(csv_filename, deg=101, M=10_000_000, plo
         # 2-norm: coef = blue (x violated, o satisfied); retraction = maize open circles only; same dashed line, no title, 3-entry legend
         for npts, d1, d2, violated_coef in zip(npts_values, diff_coef_vs_gt, diff_recovered_vs_gt, constraint_violations_coef):
             if violated_coef:
-                ax.loglog(npts, d1, 'x', color=BLUE, markersize=8, markeredgewidth=2)
+                ax.loglog(npts, d1, "x", color=BLUE, markersize=MARKERSIZE_POLY_BLUE_X, markeredgewidth=2)
             else:
-                ax.loglog(npts, d1, 'o', color=BLUE, markersize=7, markeredgewidth=1, fillstyle='none')
-            ax.loglog(npts, d2, 'o', color=MAIZE, markersize=5, markeredgewidth=1, fillstyle='none')
+                ax.loglog(npts, d1, "o", color=BLUE, markersize=MARKERSIZE_POLY_BLUE_O, markeredgewidth=1, fillstyle="none")
+            ax.loglog(npts, d2, "o", color=MAIZE, markersize=MARKERSIZE_POLY_MAIZE_O, markeredgewidth=1, fillstyle="none")
         ax.loglog(npts_values, diff_coef_vs_gt, 'k--', alpha=0.7, linewidth=1)
         ax.loglog(npts_values, diff_recovered_vs_gt, 'k--', alpha=0.7, linewidth=1)
         legend_elements = [
-            Line2D([0], [0], marker='x', color=BLUE, linestyle='None', markersize=8, markeredgewidth=2, label='Polynomial Fit (constraints violated)'),
-            Line2D([0], [0], marker='o', color=BLUE, linestyle='None', markersize=7, fillstyle='none', label='Polynomial Fit (constraints satisfied)'),
-            Line2D([0], [0], marker='o', color=MAIZE, linestyle='None', markersize=5, fillstyle='none', label='Retraction'),
+            Line2D([0], [0], marker="x", color=BLUE, linestyle="None", markersize=MARKERSIZE_POLY_BLUE_X, markeredgewidth=2, label="Polynomial Fit (constraints violated)"),
+            Line2D([0], [0], marker="o", color=BLUE, linestyle="None", markersize=MARKERSIZE_POLY_BLUE_O, fillstyle="none", label="Polynomial Fit (constraints satisfied)"),
+            Line2D([0], [0], marker="o", color=MAIZE, linestyle="None", markersize=MARKERSIZE_POLY_MAIZE_O, fillstyle="none", label="Retraction"),
         ]
 
     # Grid and labels (no title)
