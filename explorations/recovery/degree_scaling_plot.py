@@ -18,11 +18,25 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from matplotlib.lines import Line2D
-from matplotlib.ticker import FixedLocator, NullLocator
+from matplotlib.ticker import FixedLocator, FuncFormatter, NullLocator
 from scipy.fft import dct
 
 BLUE = "#0072B2"
 MAIZE = "#E69F00"
+
+
+def _mathtext_log_tick_label(x: float, pos=None) -> str:
+    """Format positive x as m×10^e for log-scale axis ticks (FixedLocator positions)."""
+    if x <= 0.0 or not np.isfinite(x):
+        return ""
+    exp = int(np.floor(np.log10(x) + 1e-12))
+    m = x * 10 ** (-exp)
+    if abs(m - 1.0) < 1e-9:
+        return rf"$10^{{{exp}}}$"
+    m_int = int(round(m))
+    if abs(m - m_int) < 1e-5 and m_int != 0:
+        return rf"${m_int}\times 10^{{{exp}}}$"
+    return rf"${m:g}\times 10^{{{exp}}}$"
 
 # Marker sizes for 2-norm polynomial-space plots (BLUE = fit, MAIZE = retraction)
 MARKERSIZE_BLUE_X = 10  # 'x' when constraints violated
@@ -78,11 +92,14 @@ def plot_summary(
     fig_path: str,
     leave_out_last: bool = False,
     max_exp: Optional[int] = None,
+    refinescale: bool = False,
 ) -> None:
     """Plot degree (log) vs max error (log) for fit and QSP.
 
     Polynomial: x if constraint violated, o (larger) if satisfied. Retraction: o (larger).
     Does not write to CSV. If max_exp is set (e.g. 8), only plot degrees with exp2 <= max_exp.
+    If refinescale is True, tighten y-limits and place explicit log-spaced y ticks (1–9×10^k
+    in view) so narrow error ranges get multiple labeled ticks.
     """
     if not os.path.exists(csv_path):
         raise FileNotFoundError(f"CSV file not found: {csv_path}")
@@ -166,6 +183,32 @@ def plot_summary(
 
     ax.set_xscale("log")
     ax.set_yscale("log")
+    if refinescale:
+        y_all = np.concatenate([err_poly_clamped, err_qsp_clamped])
+        y_min = float(np.min(y_all))
+        y_max = float(np.max(y_all))
+        span_log = max(np.log10(y_max / y_min), 1e-15)
+        pad = 0.03 + 0.06 * min(span_log, 1.0)
+        y_lo = 10.0 ** (np.log10(y_min) - pad)
+        y_hi = 10.0 ** (np.log10(y_max) + pad)
+        ax.set_ylim(y_lo, y_hi)
+
+        # LogLocator often collapses to one label per decade; build ticks explicitly.
+        exp_lo = int(np.floor(np.log10(y_lo) - 1e-12))
+        exp_hi = int(np.ceil(np.log10(y_hi) + 1e-12))
+        tickvals: list[float] = []
+        for e in range(exp_lo, exp_hi + 1):
+            base = 10.0**e
+            for m in range(1, 10):
+                v = m * base
+                if y_lo <= v <= y_hi:
+                    tickvals.append(v)
+        if len(tickvals) < 3:
+            tickvals = list(
+                10.0 ** np.linspace(np.log10(y_lo), np.log10(y_hi), max(5, len(tickvals) + 3))
+            )
+        ax.yaxis.set_major_locator(FixedLocator(np.asarray(tickvals)))
+        ax.yaxis.set_major_formatter(FuncFormatter(_mathtext_log_tick_label))
     ax.set_xlabel("Polynomial degree")
     ax.set_ylabel("Maximum error vs target")
     ax.xaxis.set_major_locator(FixedLocator(degrees_clamped))
@@ -243,6 +286,14 @@ def main() -> None:
         metavar="K",
         help="Only include degrees with exp2 <= K (e.g. --max-exp 8 for degree <= 256).",
     )
+    parser.add_argument(
+        "--refinescale",
+        action="store_true",
+        help=(
+            "Explicit log-spaced y tick positions (1–9×10^k in view) with readable "
+            "m×10^e labels and padded y-limits; default plot behavior is unchanged."
+        ),
+    )
     args = parser.parse_args()
 
     csv_path = args.csv
@@ -270,6 +321,7 @@ def main() -> None:
         fig_path,
         leave_out_last=args.leave_out_last,
         max_exp=args.max_exp,
+        refinescale=args.refinescale,
     )
 
 
