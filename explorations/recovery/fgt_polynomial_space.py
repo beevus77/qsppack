@@ -25,7 +25,10 @@ def recovered_coeffs(coefs, parity, N):
     new_a, new_b = forward_nonlinear_FFT(gammas)
 
     new_coeffs = np.zeros(len(coefs))
-    new_coeffs[1::2] = new_b[int(len(new_b)/2-1)::-1] + new_b[int(len(new_b)/2)::]
+    if parity:  # odd parity
+        new_coeffs[1::2] = new_b[int(len(new_b)/2-1)::-1] + new_b[int(len(new_b)/2)::]
+    else:  # even parity
+        new_coeffs[::2] = np.append(new_b[int((len(new_b)-1)/2)], new_b[int((len(new_b)-1)/2)-1::-1] + new_b[int((len(new_b)-1)/2)+1::])
     return new_coeffs
 
 
@@ -38,8 +41,8 @@ parser.add_argument(
     '--problem-type',
     type=str,
     default='uniform_sv_amp',
-    choices=('uniform_sv_amp', 'mat_inv'),
-    help="Target problem: 'uniform_sv_amp' = (1-eps)*x/a on [0,a]; 'mat_inv' = a/x on [a,1] (matrix inversion). Default: uniform_sv_amp.",
+    choices=('uniform_sv_amp', 'mat_inv', 'thresh_proj'),
+    help="Target problem: 'uniform_sv_amp' = (1-eps)*x/a on [0,a]; 'mat_inv' = a/x on [a,1] (matrix inversion); 'thresh_proj' = (1-eps)*np.where(np.abs(x) < 0.5, 1.0, 0.0) on [0,1]. Default: uniform_sv_amp.",
 )
 parser.add_argument('--a', type=float, default=0.2, help='Parameter a: interval [0,a] or [a,1] and target scale. Must be in (0,1). Default: 0.2.')
 args = parser.parse_args()
@@ -61,6 +64,10 @@ elif args.problem_type == 'mat_inv':
     epsil = args.epsilon
     targ = lambda x: a / x
     intervals = [a, 1]
+elif args.problem_type == 'thresh_proj':
+    epsil = args.epsilon
+    targ = lambda x: (1 - epsil) * np.where(np.abs(x) < 0.5, 1.0, 0.0)
+    intervals = [0, 0.5 - 0.05, 0.5 + 0.05, 1]
 else:
     raise ValueError(f"Unknown problem_type: {args.problem_type}")
 
@@ -75,8 +82,12 @@ N_exp = int(np.log2(args.N))
 epsil_exp = 0 if epsil == 0 else int(-np.log10(epsil))
 if args.problem_type == 'mat_inv':
     csv_filename = os.path.join(data_dir, f"fgt_polynomial_space_convergence_deg_{deg}_mat_inv_epsil{epsil_exp}_N{N_exp}.csv")
-else:
+elif args.problem_type == 'uniform_sv_amp':
     csv_filename = os.path.join(data_dir, f"fgt_polynomial_space_convergence_deg_{deg}_uniform_sv_amp_epsil{epsil_exp}_N{N_exp}.csv")
+elif args.problem_type == 'thresh_proj':
+    csv_filename = os.path.join(data_dir, f"fgt_polynomial_space_convergence_deg_{deg}_thresh_proj_epsil{epsil_exp}_N{N_exp}.csv")
+else:
+    raise ValueError(f"Unknown problem_type: {args.problem_type}")
 
 # Initialize CSV with headers if it doesn't exist
 if not os.path.exists(csv_filename):
