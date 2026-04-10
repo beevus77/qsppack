@@ -95,32 +95,32 @@ def main() -> None:
 
     # Left y-axis: max violation (blue x's), max L-inf error on [0,a] (blue circles)
     ax.scatter(
-        x, y_clamped, marker="x", color="#0072B2", s=60, linewidths=2,
-        label="$\\max_{x \\in [-1,1]} |f(x)| - 1$",
+        x, y_clamped, marker="x", color="#0072B2", s=60, linewidths=2#, label="$\\max_{x \\in [-1,1]} |f(x)| - 1$",
     )
-    if has_linf and np.any(mask_linf):
-        ax.scatter(
-            x_linf, linf_clamped, marker="o", s=50, facecolors="none",
-            edgecolors="#0072B2", linewidths=2,
-            label="$\\max_{x \\in [0,a]} |f(x) - g(x)|$",
-        )
+    # if has_linf and np.any(mask_linf):
+    #     ax.scatter(
+    #         x_linf, linf_clamped, marker="o", s=50, facecolors="none",
+    #         edgecolors="#0072B2", linewidths=2,
+    #         label="$\\max_{x \\in [0,a]} |f(x) - g(x)|$",
+    #     )
     ax.set_xscale("log")
     ax.set_yscale("log")
     ax.set_xlabel("Number of discretization points")
+    ax.set_ylabel("Maximum constraint violation", color="#0072B2")
     ax.tick_params(axis="y", labelcolor="#0072B2")
 
     # Right y-axis: optimization time (orange, retraction color)
     ax2 = ax.twinx()
     ax2.scatter(x, t_clamped, marker="x", color="#E69F00", s=60, linewidths=2)
     ax2.set_yscale("log")
-    ax2.set_ylabel("Optimization time (s)", color="#E69F00", rotation=270, labelpad=15)
+    ax2.set_ylabel("Time to solution (s)", color="#E69F00", rotation=270, labelpad=15)
     ax2.tick_params(axis="y", labelcolor="#E69F00")
 
     ax.grid(True, which="both", alpha=0.3)
 
     # Legend: left-axis series only, left side of plot and vertically centered
-    lines1, labels1 = ax.get_legend_handles_labels()
-    ax.legend(lines1, labels1, loc="center left")
+    # lines1, labels1 = ax.get_legend_handles_labels()
+    # ax.legend(lines1, labels1, loc="center left")
 
     fig.tight_layout()
     fig.savefig(fig_path, bbox_inches="tight")
