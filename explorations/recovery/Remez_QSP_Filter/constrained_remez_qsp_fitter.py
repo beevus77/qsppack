@@ -2,6 +2,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from typing import Callable, Optional, Sequence, Tuple, Dict, Any, List
 
+from qsppack.nlfa import b_from_cheb, weiss, inverse_nonlinear_FFT, forward_nonlinear_FFT
+
 
 Interval = Tuple[float, float]
 
@@ -10,6 +12,28 @@ Interval = Tuple[float, float]
 BLUE = "#00274C"
 MAIZE = "#FFCB05"
 LIGHT_GRAY = "#D9D9D9"
+
+
+def recovered_coeffs(coefs, parity, N):
+    """
+    Recovered coefficients from the original coefficients using the NLFA algorithms.
+    
+    Args:
+        coefs: Coefficients to recover
+        parity: Parity of the polynomial
+        N: Parameter for weiss function
+    """
+    b_coeffs = b_from_cheb(coefs[parity::2], parity)
+    a_coeffs = weiss(b_coeffs, N)
+    gammas, _, _ = inverse_nonlinear_FFT(a_coeffs, b_coeffs)
+    new_a, new_b = forward_nonlinear_FFT(gammas)
+
+    new_coeffs = np.zeros(len(coefs))
+    if parity:  # odd parity
+        new_coeffs[1::2] = new_b[int(len(new_b)/2-1)::-1] + new_b[int(len(new_b)/2)::]
+    else:  # even parity
+        new_coeffs[::2] = np.append(new_b[int((len(new_b)-1)/2)], new_b[int((len(new_b)-1)/2)-1::-1] + new_b[int((len(new_b)-1)/2)+1::])
+    return new_coeffs
 
 
 def merge_intervals(
@@ -96,6 +120,12 @@ class ConstrainedRemezQSPFitter:
     Optimization always uses ``target``.
     Evaluation/plotting metrics can use ``actual_target`` if provided.
     When ``actual_target`` is None, it defaults to ``target``.
+
+    After ``fit``, the result includes a ``retracted`` block: NLFA retraction of the
+    raw Chebyshev coefficients (see ``recovered_coeffs``), with metrics on the
+    retracted compact coefficients. ``retracted["Delta"]`` and
+    ``ripple_amplitude`` in those metrics are NaN because equioscillation
+    amplitude from Remez does not apply after retraction.
     """
 
     def __init__(
@@ -122,6 +152,7 @@ class ConstrainedRemezQSPFitter:
         inner_tol: float = 1e-9,
         metrics_grid_size: int = 20000,
         metrics_interval_grid_size: int = 4000,
+        recovery_N: int = 2**15,
     ) -> None:
         self.domain = domain
         self.omega_fit = merge_intervals(omega_fit, domain=domain)
@@ -158,6 +189,7 @@ class ConstrainedRemezQSPFitter:
         self.inner_tol = float(inner_tol)
         self.metrics_grid_size = int(metrics_grid_size)
         self.metrics_interval_grid_size = int(metrics_interval_grid_size)
+        self.recovery_N = int(recovery_N)
 
         self._last_result: Optional[Dict[str, Any]] = None
 
@@ -440,6 +472,7 @@ class ConstrainedRemezQSPFitter:
         self,
         d: int,
         X0: Optional[np.ndarray] = None,
+        recovery_N: Optional[int] = None,
     ) -> Dict[str, Any]:
         ks = self.parity_indices(d)
         omega_work_grid = union_grid(self.omega_work, self.passband_grid_per_interval)
@@ -534,6 +567,24 @@ class ConstrainedRemezQSPFitter:
             kind="scaled",
             use_actual_target=True,
         )
+        
+        print("Performing retraction...")
+        N_nlfa = self.recovery_N if recovery_N is None else int(recovery_N)
+        coef_full = np.zeros(d + 1, dtype=float)
+        for k, c in zip(ks, raw_coeffs):
+            coef_full[int(k)] = c
+        retracted_full = recovered_coeffs(coef_full, int(d) % 2, N_nlfa)
+        retracted_coeffs = retracted_full[ks.astype(int)]
+        retracted_metrics = self._build_metrics(
+            retracted_coeffs,
+            ks,
+            d,
+            float("nan"),
+            raw_max_magnitude=raw_max_magnitude,
+            scaling_factor=1.0,
+            kind="retracted",
+            use_actual_target=True,
+        )
 
         result = {
             "degree": int(d),
@@ -548,6 +599,12 @@ class ConstrainedRemezQSPFitter:
                 "coeffs": scaled_coeffs.copy(),
                 "Delta": scaled_Delta,
                 "metrics": scaled_metrics,
+            },
+            "retracted": {
+                "coeffs": retracted_coeffs.copy(),
+                "Delta": float("nan"),
+                "metrics": retracted_metrics,
+                "recovery_N": int(N_nlfa),
             },
         }
 
