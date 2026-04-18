@@ -34,7 +34,7 @@ def chebval_dct(c, M):
     return dct(c_pad, type=1, norm=None)
 
 
-def plot_fit_from_csv(csv_filename, npts_value=None):
+def plot_fit_from_csv(csv_filename, npts_value=None, ploterror=False):
     """
     Plot polynomial approximation and recovered polynomial against true function
     using data from CSV file produced by fgt_polynomial_space.py.
@@ -93,20 +93,59 @@ def plot_fit_from_csv(csv_filename, npts_value=None):
 
     # Create the plot
     print("Creating plot...")
-    plt.figure(figsize=(12, 8))
-    # Use colorblind-friendly colors: black, blue (safe), and orange
-    plt.plot(xlist, targ_value, label='Target', color='black', linewidth=2)
-    plt.plot(xlist, func_value, label='Polynomial Approximation', color='#0072B2', linewidth=2)  # Blue
-    plt.plot(xlist, recovered_value, label='Retraction', color='#E69F00', linewidth=2, linestyle='--')  # Orange
+    if ploterror:
+        fig, (ax_left, ax_right) = plt.subplots(1, 2, figsize=(14, 6))
+    else:
+        fig, ax_left = plt.subplots(figsize=(12, 8))
 
-    plt.grid(True, alpha=0.3)
-    plt.xlim([-1, 1])
-    plt.ylim([-1.1, 1.1])
-    plt.legend(loc='best', framealpha=1)
-    # plt.title(f'Polynomial-Space Fit (degree={degree}, npts={npts}, conv_diff={convergence_diff:.2e})')
-    plt.xlabel(r'$x$')
-    # plt.ylabel(r'$f(x)$')
-    plt.tight_layout()
+    # Use colorblind-friendly colors: black, blue (safe), and orange
+    ax_left.plot(xlist, targ_value, label='Target', color='black', linewidth=2)
+    ax_left.plot(xlist, func_value, label='Polynomial Approximation', color='#0072B2', linewidth=2)  # Blue
+    ax_left.plot(xlist, recovered_value, label='Retraction', color='#E69F00', linewidth=2, linestyle='--')  # Orange
+    ax_left.grid(True, alpha=0.3)
+    ax_left.set_xlim([-1, 1])
+    ax_left.set_ylim([-1.1, 1.1])
+    ax_left.legend(loc='best', framealpha=1, fontsize=13)
+    ax_left.set_xlabel('')
+
+    if ploterror:
+        s = float(np.max(np.abs(func_value)))
+        if s <= 0.0:
+            raise ValueError("max |p| is zero; cannot scale unretracted polynomial.")
+        floor = 1e-20
+        abs_err_recovered = np.maximum(np.abs(recovered_value - targ_value), floor)
+        abs_err_scaled = np.maximum(np.abs(func_value / s - targ_value), floor)
+        abs_err_poly = np.maximum(np.abs(func_value - targ_value), floor)
+
+        # Error plot only on domain of interest [-a, a]
+        domain_mask = np.abs(xlist) <= a
+        x_domain = xlist[domain_mask]
+        order = np.argsort(x_domain)
+        x_domain = x_domain[order]
+        err_recovered_domain = abs_err_recovered[domain_mask][order]
+        err_scaled_domain = abs_err_scaled[domain_mask][order]
+        err_poly_domain = abs_err_poly[domain_mask][order]
+
+        # Draw order and styles: unscaled bottom (blue solid), scaled (green solid), retraction on top (orange dashed)
+        ax_right.plot(x_domain, err_poly_domain, color='#0072B2', linewidth=1.5, label='Unscaled', zorder=1)
+        ax_right.plot(x_domain, err_scaled_domain, color='#009E73', linewidth=1.5, label='Scaled', zorder=2)
+        ax_right.plot(x_domain, err_recovered_domain, color='#E69F00', linewidth=1.6, linestyle='--', label='Retraction', zorder=3)
+        ax_right.set_yscale("log")
+        ax_right.grid(True, alpha=0.3, which="both")
+        ax_right.set_xlim([-a, a])
+        ax_right.set_xlabel('')
+        ax_right.set_ylabel('Absolute error from target (log)')
+        handles, labels = ax_right.get_legend_handles_labels()
+        order = [2, 1, 0]  # Retraction, Scaled, Unscaled
+        ax_right.legend(
+            [handles[i] for i in order],
+            [labels[i] for i in order],
+            loc='best',
+            framealpha=1,
+            fontsize=13,
+        )
+
+    fig.tight_layout()
     plt.show()
 
 
@@ -117,6 +156,8 @@ if __name__ == "__main__":
                        help='Specific npts value to plot (default: latest available)')
     parser.add_argument('--csv', type=str, default=None,
                        help='Path to CSV file (default: auto-detect)')
+    parser.add_argument('--ploterror', action='store_true',
+                       help='Show two subplots: fit (left) and error comparison (right).')
 
     args = parser.parse_args()
 
@@ -152,6 +193,6 @@ if __name__ == "__main__":
         raise SystemExit(1)
 
     # Plot from CSV
-    plot_fit_from_csv(csv_filename, args.npts)
+    plot_fit_from_csv(csv_filename, args.npts, ploterror=args.ploterror)
 
 
