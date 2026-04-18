@@ -48,6 +48,7 @@ from qsppack.utils import cvx_poly_coef, chebyshev_to_func, get_entry
 
 BLUE = "#0072B2"
 MAIZE = "#E69F00"
+GREEN = "#009E73"
 
 # Marker sizes for 2-norm polynomial-space plots (BLUE = fit, MAIZE = retraction)
 MARKERSIZE_BLUE_X = 10  # 'x' when constraints violated
@@ -561,11 +562,11 @@ def plot_pointwise_retraction_and_scaled_poly_errors_on_ax(
     n_x: int = 4000,
 ) -> None:
     """
-    Log-linear plot of |q(x) - f(x)| and |(p(x)/s) - f(x)| on [0, 1], excluding
-    the transition band around x = 0.5. Here q is the retracted (QSP) polynomial,
-    p the fit polynomial, f the threshold target, and s = max_{[-1,1]} |p|.
-
-    Returns the max errors over the same mask used in run_single_degree.
+    Log-linear plot of |q-f|, |p/s-f|, and |p-f| on [0, 1], excluding the transition
+    band around x = 0.5. Here ``p`` comes from the CSV ``coef`` column (unretracted
+    parity-stripped Chebyshev coefficients); ``coef_full`` is only used for
+    ``s = max_{[-1,1]} |p|``. When ``s`` is essentially 1 and ``q`` is close to ``p``,
+    the scaled and retracted error curves can coincide on a log scale.
     """
     coef = np.array(json.loads(row["coef"]), dtype=float)
     coef_full = np.array(json.loads(row["coef_full"]), dtype=float)
@@ -588,6 +589,7 @@ def plot_pointwise_retraction_and_scaled_poly_errors_on_ax(
     floor = 1e-20
     abs_err_qsp = np.maximum(np.abs(q - targ), floor)
     abs_err_scaled_poly = np.maximum(np.abs(p / s - targ), floor)
+    abs_err_fit_poly = np.maximum(np.abs(p - targ), floor)
 
     m_left, m_right = _off_jump_masks_unit_interval(x)
     first = True
@@ -595,15 +597,27 @@ def plot_pointwise_retraction_and_scaled_poly_errors_on_ax(
         if not np.any(mask):
             continue
         lbl_q = "Retracted $|q-f|$" if first else None
-        lbl_p = "Scaled fit $|p/s-f|$" if first else None
+        lbl_ps = "Scaled fit $|p/s-f|$" if first else None
+        lbl_p = "Unscaled fit $|p-f|$" if first else None
         ax.plot(x[mask], abs_err_qsp[mask], color=MAIZE, linewidth=1.2, label=lbl_q)
-        ax.plot(x[mask], abs_err_scaled_poly[mask], color=BLUE, linewidth=1.2, label=lbl_p)
+        ax.plot(x[mask], abs_err_scaled_poly[mask], color=BLUE, linewidth=1.2, label=lbl_ps)
+        ax.plot(
+            x[mask],
+            abs_err_fit_poly[mask],
+            color=GREEN,
+            linewidth=1.2,
+            linestyle="--",
+            label=lbl_p,
+        )
         first = False
 
     # Directly report the same "max off-transition error" definition as the left plot data.
     off_transition_mask = m_left | m_right
     max_err_qsp = float(np.max(abs_err_qsp[off_transition_mask]))
     max_err_scaled_poly = float(np.max(abs_err_scaled_poly[off_transition_mask]))
+    max_err_fit_poly = float(np.max(abs_err_fit_poly[off_transition_mask]))
+    max_qp = float(np.max(np.abs((q - p)[off_transition_mask])))
+    max_p_ps = float(np.max(np.abs((p / s - p)[off_transition_mask])))
 
     ax.set_yscale("log")
     ax.set_xlabel("$x$")
@@ -614,7 +628,9 @@ def plot_pointwise_retraction_and_scaled_poly_errors_on_ax(
     deg = int(row["degree"])
     ax.set_title(
         f"Pointwise errors (degree {deg})\n"
-        f"max |q-f|={max_err_qsp:.2e}, max |p/s-f|={max_err_scaled_poly:.2e}"
+        f"max |q-f|={max_err_qsp:.2e}, max |p/s-f|={max_err_scaled_poly:.2e}, "
+        f"max |p-f|={max_err_fit_poly:.2e}\n"
+        f"s={s:.10f}, max|q-p|={max_qp:.2e}, max|p/s-p|={max_p_ps:.2e}"
     )
 
 

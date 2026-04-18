@@ -124,6 +124,8 @@ def run_single_degree(
     phi_proc, out = solve(coef, parity, opts_qsp)
     time_qsp = time.time() - t1
     out["typePhi"] = "full"
+    # NLFT returns phases for the real (Pre) QSP response; match get_entry to that channel.
+    out["targetPre"] = True
 
     xlist = np.linspace(x_lo, x_hi, n_xplot)
     func = lambda x: chebyshev_to_func(x, coef, parity, True)

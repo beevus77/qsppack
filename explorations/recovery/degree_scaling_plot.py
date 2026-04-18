@@ -7,22 +7,29 @@ Reads CSV with degree, max_error_poly, max_error_qsp, constraint_violated, etc.,
 and produces a log-log plot of polynomial degree vs maximum error vs target,
 with the same style as degree_scaling_thresh_proj (polynomial: x if constraints
 violated, o if satisfied; retraction: o).
+
+With ``--ploterror --errordegree D --problem-type ...``, also writes a two-panel
+figure: the usual summary plus pointwise $|q-f|$ and $|p/s-f|$ on the problem domain
+($s=\max_{[-1,1]}|p|$ from Chebyshev samples). Pass ``--a`` / ``--epsilon`` to match
+the values used when generating the CSV (defaults 0.2 and 0.0).
 """
 
 import argparse
 import json
 import os
-from typing import Optional
+from typing import Any, Callable, Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from matplotlib.axes import Axes
 from matplotlib.lines import Line2D
 from matplotlib.ticker import FixedLocator, FuncFormatter, NullLocator
 from scipy.fft import dct
 
 BLUE = "#0072B2"
 MAIZE = "#E69F00"
+GREEN = "#009E73"
 
 
 def _mathtext_log_tick_label(x: float, pos=None) -> str:
@@ -42,6 +49,8 @@ def _mathtext_log_tick_label(x: float, pos=None) -> str:
 MARKERSIZE_BLUE_X = 10  # 'x' when constraints violated
 MARKERSIZE_BLUE_O = 8  # 'o' when constraints satisfied
 MARKERSIZE_MAIZE_O = 12  # retraction (open circles)
+
+M_CHEB_CONSTRAINT = 1_000_000
 
 
 def chebval_dct(c: np.ndarray, M: int) -> np.ndarray:
@@ -87,20 +96,22 @@ def _constraint_violated_from_row(row, M_cheb: int = 1_000_000) -> bool:
     return (np.max(np.abs(vals)) - 1.0) > 0.0
 
 
-def plot_summary(
+def _max_abs_poly_on_interval_minus1_1(coef_full: np.ndarray) -> float:
+    """Max |p(x)| on [-1, 1] via Chebyshev nodes (same spirit as constraint check)."""
+    M_cheb = M_CHEB_CONSTRAINT
+    try:
+        vals = chebval_dct(coef_full, M_cheb)
+    except MemoryError:
+        vals = chebval_dct(coef_full, 100_000)
+    return float(np.max(np.abs(vals)))
+
+
+def _load_degree_scaling_dataframe(
     csv_path: str,
-    fig_path: str,
     leave_out_last: bool = False,
     max_exp: Optional[int] = None,
-    refinescale: bool = False,
-) -> None:
-    """Plot degree (log) vs max error (log) for fit and QSP.
-
-    Polynomial: x if constraint violated, o (larger) if satisfied. Retraction: o (larger).
-    Does not write to CSV. If max_exp is set (e.g. 8), only plot degrees with exp2 <= max_exp.
-    If refinescale is True, tighten y-limits and place explicit log-spaced y ticks (1–9×10^k
-    in view) so narrow error ranges get multiple labeled ticks.
-    """
+) -> pd.DataFrame:
+    """Read CSV and return processed rows for the degree-vs-error summary plot."""
     if not os.path.exists(csv_path):
         raise FileNotFoundError(f"CSV file not found: {csv_path}")
 
@@ -131,6 +142,15 @@ def plot_summary(
             data = data[data["degree"] <= 2**max_exp].reset_index(drop=True)
         else:
             data = data[data["exp2"] <= max_exp].reset_index(drop=True)
+    return data
+
+
+def _plot_degree_scaling_on_ax(
+    ax: Axes,
+    data: pd.DataFrame,
+    refinescale: bool = False,
+) -> None:
+    """Draw the log-log degree vs max error summary on an existing Axes."""
     degrees = data["degree"].to_numpy(dtype=float)
     exponents = (
         data["exp2"].to_numpy(dtype=float)
@@ -145,10 +165,6 @@ def plot_summary(
     err_poly_clamped = np.where(err_poly > 0.0, err_poly, 1e-16)
     err_qsp_clamped = np.where(err_qsp > 0.0, err_qsp, 1e-16)
 
-    plt.rcParams["font.family"] = "serif"
-    plt.rcParams["font.size"] = 12
-
-    fig, ax = plt.subplots(figsize=(8, 6))
     for i in range(len(degrees_clamped)):
         if constraint_violated[i]:
             ax.plot(
@@ -193,7 +209,6 @@ def plot_summary(
         y_hi = 10.0 ** (np.log10(y_max) + pad)
         ax.set_ylim(y_lo, y_hi)
 
-        # LogLocator often collapses to one label per decade; build ticks explicitly.
         exp_lo = int(np.floor(np.log10(y_lo) - 1e-12))
         exp_hi = int(np.ceil(np.log10(y_hi) + 1e-12))
         tickvals: list[float] = []
@@ -250,6 +265,148 @@ def plot_summary(
     ]
     ax.legend(handles=legend_elements, loc="best")
 
+
+def plot_pointwise_retraction_and_scaled_poly_errors_on_ax(
+    ax: Axes,
+    row: Any,
+    target_fn: Callable[[np.ndarray], np.ndarray],
+    x_lo: float,
+    x_hi: float,
+    n_x: int = 4000,
+) -> None:
+    """
+    Log-linear plot of |q-f|, |p/s-f|, and |p-f| on [x_lo, x_hi] (problem domain).
+
+    Here ``p`` is the unretracted fit from the CSV ``coef`` column (parity-stripped
+    Chebyshev coefficients); ``coef_full`` is used only to form
+    ``s = max_{[-1,1]} |p|`` on Chebyshev nodes. When ``s`` is essentially 1 and the
+    retraction satisfies ``q`` approximately ``p``, the scaled curve ``p/s`` is almost the same
+    as ``p``, so its error track can sit on top of the retracted error track.
+    """
+    from qsppack.utils import chebyshev_to_func, get_entry
+
+    coef = np.array(json.loads(row["coef"]), dtype=float)
+    coef_full = np.array(json.loads(row["coef_full"]), dtype=float)
+    phi_proc = np.array(json.loads(row["phi_proc"]), dtype=float)
+    parity = int(row["parity"])
+
+    out_qsp = {"targetPre": True, "parity": parity, "typePhi": "full"}
+
+    x = np.linspace(float(x_lo), float(x_hi), n_x)
+    targ = target_fn(x)
+    p = chebyshev_to_func(x, coef, parity, True)
+    q = get_entry(x, phi_proc, out_qsp)
+
+    s = _max_abs_poly_on_interval_minus1_1(coef_full)
+    if s <= 0.0:
+        raise ValueError("max |p| on [-1, 1] is zero; cannot scale unretracted polynomial.")
+
+    floor = 1e-20
+    abs_err_qsp = np.maximum(np.abs(q - targ), floor)
+    abs_err_scaled_poly = np.maximum(np.abs(p / s - targ), floor)
+    abs_err_fit_poly = np.maximum(np.abs(p - targ), floor)
+
+    ax.plot(x, abs_err_qsp, color=MAIZE, linewidth=1.2, label="Retracted $|q-f|$")
+    ax.plot(x, abs_err_scaled_poly, color=BLUE, linewidth=1.2, label="Scaled fit $|p/s-f|$")
+    ax.plot(
+        x,
+        abs_err_fit_poly,
+        color=GREEN,
+        linewidth=1.2,
+        linestyle="--",
+        label="Unscaled fit $|p-f|$",
+    )
+
+    max_err_qsp = float(np.max(np.abs(q - targ)))
+    max_err_scaled_poly = float(np.max(np.abs(p / s - targ)))
+    max_err_fit_poly = float(np.max(np.abs(p - targ)))
+    max_qp = float(np.max(np.abs(q - p)))
+    max_p_ps = float(np.max(np.abs(p / s - p)))
+
+    ax.set_yscale("log")
+    ax.set_xlabel("$x$")
+    ax.set_ylabel("Absolute error")
+    ax.set_xlim([float(x_lo), float(x_hi)])
+    ax.grid(True, which="both", alpha=0.3)
+    ax.legend(loc="best")
+    deg = int(row["degree"])
+    csv_q = float(row["max_error_qsp"])
+    ax.set_title(
+        f"Pointwise errors (degree {deg})\n"
+        f"max |q-f|={max_err_qsp:.2e} (CSV {csv_q:.2e}), "
+        f"max |p/s-f|={max_err_scaled_poly:.2e}, max |p-f|={max_err_fit_poly:.2e}\n"
+        f"s={s:.10f}, max|q-p|={max_qp:.2e}, max|p/s-p|={max_p_ps:.2e}"
+    )
+
+
+def plot_summary_and_pointwise_errors(
+    csv_path: str,
+    fig_path: str,
+    errordegree: int,
+    problem_type: str,
+    a: float,
+    epsil: float,
+    leave_out_last: bool = False,
+    max_exp: Optional[int] = None,
+    refinescale: bool = False,
+) -> None:
+    """Left: degree scaling summary; right: pointwise errors for one degree."""
+    from degree_scaling_data import build_target_and_domain
+
+    raw = pd.read_csv(csv_path)
+    if "degree" not in raw.columns:
+        raise ValueError("CSV must contain 'degree' column.")
+    degrees_in_file = set(int(d) for d in raw["degree"].tolist())
+    if int(errordegree) not in degrees_in_file:
+        raise ValueError(
+            f"errordegree={errordegree} is not among degrees in {csv_path}: "
+            f"{sorted(degrees_in_file)}"
+        )
+
+    target_fn, _intervals, x_lo, x_hi = build_target_and_domain(problem_type, a, epsil)
+    data = _load_degree_scaling_dataframe(csv_path, leave_out_last, max_exp)
+    matches = raw.loc[raw["degree"].astype(int) == int(errordegree)]
+    if matches.empty:
+        raise ValueError(f"No CSV row found for degree {errordegree}.")
+    row = matches.iloc[0]
+
+    plt.rcParams["font.family"] = "serif"
+    plt.rcParams["font.size"] = 12
+
+    fig, (ax0, ax1) = plt.subplots(1, 2, figsize=(14, 6))
+    _plot_degree_scaling_on_ax(ax0, data, refinescale=refinescale)
+    ax0.set_title("Max error vs degree")
+    plot_pointwise_retraction_and_scaled_poly_errors_on_ax(
+        ax1, row, target_fn, x_lo, x_hi
+    )
+
+    fig.tight_layout()
+    fig.savefig(fig_path, bbox_inches="tight")
+    print(f"Figure saved to: {fig_path}")
+
+
+def plot_summary(
+    csv_path: str,
+    fig_path: str,
+    leave_out_last: bool = False,
+    max_exp: Optional[int] = None,
+    refinescale: bool = False,
+) -> None:
+    """Plot degree (log) vs max error (log) for fit and QSP.
+
+    Polynomial: x if constraint violated, o (larger) if satisfied. Retraction: o (larger).
+    Does not write to CSV. If max_exp is set (e.g. 8), only plot degrees with exp2 <= max_exp.
+    If refinescale is True, tighten y-limits and place explicit log-spaced y ticks (1–9×10^k
+    in view) so narrow error ranges get multiple labeled ticks.
+    """
+    data = _load_degree_scaling_dataframe(csv_path, leave_out_last, max_exp)
+
+    plt.rcParams["font.family"] = "serif"
+    plt.rcParams["font.size"] = 12
+
+    fig, ax = plt.subplots(figsize=(8, 6))
+    _plot_degree_scaling_on_ax(ax, data, refinescale=refinescale)
+
     fig.tight_layout()
     fig.savefig(fig_path, bbox_inches="tight")
     print(f"Figure saved to: {fig_path}")
@@ -294,7 +451,50 @@ def main() -> None:
             "m×10^e labels and padded y-limits; default plot behavior is unchanged."
         ),
     )
+    parser.add_argument(
+        "--ploterror",
+        action="store_true",
+        help=(
+            "Write a two-panel PDF (summary + pointwise $|q-f|$ and $|p/s-f|$ on the "
+            "problem domain). Requires --errordegree and --problem-type; set --a and "
+            "--epsilon to match degree_scaling_data.py."
+        ),
+    )
+    parser.add_argument(
+        "--errordegree",
+        type=int,
+        default=None,
+        metavar="D",
+        help="Degree for the pointwise error panel (must appear in the CSV).",
+    )
+    parser.add_argument(
+        "--problem-type",
+        type=str,
+        choices=["mat_inv", "uniform_sv_amp"],
+        default=None,
+        help="Which target was used to build the CSV (required with --ploterror).",
+    )
+    parser.add_argument(
+        "--a",
+        type=float,
+        default=0.2,
+        help="Parameter a; must match degree_scaling_data.py (default 0.2).",
+    )
+    parser.add_argument(
+        "--epsilon",
+        type=float,
+        default=0.0,
+        help="Epsilon; must match degree_scaling_data.py --epsilon (default 0).",
+    )
     args = parser.parse_args()
+
+    if args.ploterror:
+        if args.errordegree is None:
+            raise ValueError("--ploterror requires --errordegree.")
+        if args.problem_type is None:
+            raise ValueError("--ploterror requires --problem-type (mat_inv or uniform_sv_amp).")
+        if not (0.0 < args.a < 1.0):
+            raise ValueError("--a must lie in (0, 1).")
 
     csv_path = args.csv
     if not os.path.isabs(csv_path) and not os.path.exists(csv_path):
@@ -316,13 +516,26 @@ def main() -> None:
         fig_path = os.path.join(figures_dir, f"{base}.pdf")
         os.makedirs(figures_dir, exist_ok=True)
 
-    plot_summary(
-        csv_path,
-        fig_path,
-        leave_out_last=args.leave_out_last,
-        max_exp=args.max_exp,
-        refinescale=args.refinescale,
-    )
+    if args.ploterror:
+        plot_summary_and_pointwise_errors(
+            csv_path,
+            fig_path,
+            args.errordegree,
+            problem_type=args.problem_type,
+            a=args.a,
+            epsil=args.epsilon,
+            leave_out_last=args.leave_out_last,
+            max_exp=args.max_exp,
+            refinescale=args.refinescale,
+        )
+    else:
+        plot_summary(
+            csv_path,
+            fig_path,
+            leave_out_last=args.leave_out_last,
+            max_exp=args.max_exp,
+            refinescale=args.refinescale,
+        )
 
 
 if __name__ == "__main__":
