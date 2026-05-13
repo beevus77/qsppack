@@ -90,6 +90,8 @@ def main() -> None:
     # Use serif fonts consistent with other recovery plots
     plt.rcParams["font.family"] = "serif"
     plt.rcParams["font.size"] = 12
+    axis_label_fontsize = 20
+    tick_label_fontsize = 18
 
     fig, ax = plt.subplots(figsize=(8, 6))
 
@@ -105,16 +107,27 @@ def main() -> None:
     #     )
     ax.set_xscale("log")
     ax.set_yscale("log")
-    ax.set_xlabel("Number of discretization points")
-    ax.set_ylabel("Maximum constraint violation", color="#0072B2")
+    ax.set_xlabel("Number of discretization points", fontsize=axis_label_fontsize)
+    ax.set_ylabel(
+        "Maximum constraint violation",
+        color="#0072B2",
+        fontsize=axis_label_fontsize,
+    )
+    ax.tick_params(axis="both", labelsize=tick_label_fontsize)
     ax.tick_params(axis="y", labelcolor="#0072B2")
 
     # Right y-axis: optimization time (orange, retraction color)
     ax2 = ax.twinx()
     ax2.scatter(x, t_clamped, marker="x", color="#E69F00", s=60, linewidths=2)
     ax2.set_yscale("log")
-    ax2.set_ylabel("Time to solution (s)", color="#E69F00", rotation=270, labelpad=15)
-    ax2.tick_params(axis="y", labelcolor="#E69F00")
+    ax2.set_ylabel(
+        "Time to solution (s)",
+        color="#E69F00",
+        rotation=270,
+        labelpad=15,
+        fontsize=axis_label_fontsize,
+    )
+    ax2.tick_params(axis="y", labelcolor="#E69F00", labelsize=tick_label_fontsize)
 
     ax.grid(True, which="both", alpha=0.3)
 

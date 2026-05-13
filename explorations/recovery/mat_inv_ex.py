@@ -20,10 +20,17 @@ from qsppack.utils import cvx_poly_coef
 # Match LaTeX/plotting style used elsewhere in this directory
 plt.rcParams["text.usetex"] = True
 plt.rcParams["font.family"] = "serif"
-plt.rcParams["font.size"] = 14
-plt.rcParams["axes.titlesize"] = 18
-plt.rcParams["axes.labelsize"] = 16
-plt.rcParams["legend.fontsize"] = 14
+plt.rcParams["font.size"] = 24
+plt.rcParams["axes.titlesize"] = 28
+plt.rcParams["axes.labelsize"] = 26
+plt.rcParams["legend.fontsize"] = 18
+plt.rcParams["xtick.labelsize"] = 24
+plt.rcParams["ytick.labelsize"] = 24
+
+BASE_FONTSIZE = 24
+AXIS_LABEL_FONTSIZE = 26
+TITLE_FONTSIZE = 28
+LEGEND_FONTSIZE = 18
 
 
 def chebval_dct(c: np.ndarray, M: int) -> np.ndarray:
@@ -373,9 +380,27 @@ def _draw_one_plot(
         )
     ax.grid(True, alpha=0.3)
     ax.set_xlim([0, 1])
-    ax.legend(loc=legend_loc, framealpha=1, fontsize=14)
-    ax.set_xlabel(r"$x$")
-    ax.set_title(title)
+    ax.legend(loc=legend_loc, framealpha=1, fontsize=LEGEND_FONTSIZE)
+    ax.set_xlabel(r"$x$", fontsize=AXIS_LABEL_FONTSIZE)
+    ax.set_title(title, fontsize=TITLE_FONTSIZE)
+    ax.tick_params(axis="both", labelsize=BASE_FONTSIZE)
+
+
+def _finish_figure(fig: plt.Figure, output_path: str | None) -> None:
+    """Save to output_path when provided; otherwise fall back to interactive display."""
+    for ax in fig.axes:
+        ax.tick_params(axis="both", labelsize=BASE_FONTSIZE)
+    fig.tight_layout()
+    if output_path is None:
+        plt.show()
+        return
+
+    out_dir = os.path.dirname(os.path.abspath(output_path))
+    if out_dir:
+        os.makedirs(out_dir, exist_ok=True)
+    fig.savefig(output_path, bbox_inches="tight")
+    plt.close(fig)
+    print(f"Figure saved to: {output_path}")
 
 
 def plot_optimal_and_retraction(
@@ -388,6 +413,7 @@ def plot_optimal_and_retraction(
     use_p_theta: bool = False,
     p_theta_eps: float = 1e-6,
     a_window: float | None = None,
+    output_path: str | None = None,
 ) -> None:
     """
     Plot target a/x (on S(a)), polynomial approximation, and its retraction.
@@ -459,17 +485,16 @@ def plot_optimal_and_retraction(
                 ax_err.set_yscale("log")
                 ax_err.grid(True, alpha=0.3)
                 ax_err.set_xlim([0, 1])
-                ax_err.set_xlabel(r"$x$", fontsize=16)
+                ax_err.set_xlabel(r"$x$", fontsize=AXIS_LABEL_FONTSIZE)
                 # Only label error y-axis on the far-left subplot
                 if ax_err is ax_err_left:
-                    ax_err.set_ylabel("Error", fontsize=16)
+                    ax_err.set_ylabel("Error", fontsize=AXIS_LABEL_FONTSIZE)
             # Hide y-axis ticks/labels on the right error subplot only
             ax_err_right.tick_params(labelleft=False)
             # Hide x-axis tick labels on the top row (shared x with error plots)
             ax_left.tick_params(labelbottom=False)
             ax_right.tick_params(labelbottom=False)
-            plt.tight_layout()
-            plt.show()
+            _finish_figure(fig, output_path)
             return
 
         # both, no error plot
@@ -487,8 +512,7 @@ def plot_optimal_and_retraction(
             coef_recovered_full = np.zeros(degree + 1)
             coef_recovered_full[1::2] = new_b[int(len(new_b) / 2 - 1) :: -1] + new_b[int(len(new_b) / 2) : :]
             _draw_one_plot(ax, xlist, targ_value, coef_full, coef_recovered_full, M, title, legend_loc="upper right")
-        plt.tight_layout()
-        plt.show()
+        _finish_figure(fig, output_path)
         return
 
     if method == "all":
@@ -525,8 +549,8 @@ def plot_optimal_and_retraction(
             ax_err_w.set_yscale("log")
             ax_err_w.grid(True, alpha=0.3)
             ax_err_w.set_xlim([0, 1])
-            ax_err_w.set_xlabel(r"$x$", fontsize=16)
-            ax_err_w.set_ylabel("Error", fontsize=16)
+            ax_err_w.set_xlabel(r"$x$", fontsize=AXIS_LABEL_FONTSIZE)
+            ax_err_w.set_ylabel("Error", fontsize=AXIS_LABEL_FONTSIZE)
             # Sunderhof (center)
             coef_s = get_coef_full(a, n, "sunderhof")
             b_s = b_from_cheb(coef_s[parity::2], parity)
@@ -552,7 +576,7 @@ def plot_optimal_and_retraction(
             ax_err_s.set_yscale("log")
             ax_err_s.grid(True, alpha=0.3)
             ax_err_s.set_xlim([0, 1])
-            ax_err_s.set_xlabel(r"$x$", fontsize=16)
+            ax_err_s.set_xlabel(r"$x$", fontsize=AXIS_LABEL_FONTSIZE)
             ax_err_s.tick_params(labelleft=False)
             # CVXPY (right)
             coef_c = get_coef_full(a, n, "cvxpy")
@@ -579,13 +603,12 @@ def plot_optimal_and_retraction(
             ax_err_c.set_yscale("log")
             ax_err_c.grid(True, alpha=0.3)
             ax_err_c.set_xlim([0, 1])
-            ax_err_c.set_xlabel(r"$x$", fontsize=16)
+            ax_err_c.set_xlabel(r"$x$", fontsize=AXIS_LABEL_FONTSIZE)
             ax_err_c.tick_params(labelleft=False)
             ax_w.tick_params(labelbottom=False)
             ax_s.tick_params(labelbottom=False)
             ax_c.tick_params(labelbottom=False)
-            plt.tight_layout()
-            plt.show()
+            _finish_figure(fig, output_path)
         else:
             fig, (ax_w, ax_s, ax_c) = plt.subplots(1, 3, figsize=(18, 6))
             coef_w = get_coef_full(a, n, "window")
@@ -621,8 +644,7 @@ def plot_optimal_and_retraction(
                 f"Optimal Constrained + Retraction\n(deg {deg_label})",
             )
             ax_c.set_ylim(-1.07, 1.07)
-            plt.tight_layout()
-            plt.show()
+            _finish_figure(fig, output_path)
         return
 
     if method == "window":
@@ -658,10 +680,9 @@ def plot_optimal_and_retraction(
             ax_err.set_yscale("log")
             ax_err.grid(True, alpha=0.3)
             ax_err.set_xlim([0, 1])
-            ax_err.set_xlabel(r"$x$", fontsize=16)
-            ax_err.set_ylabel("Error", fontsize=16)
-            plt.tight_layout()
-            plt.show()
+            ax_err.set_xlabel(r"$x$", fontsize=AXIS_LABEL_FONTSIZE)
+            ax_err.set_ylabel("Error", fontsize=AXIS_LABEL_FONTSIZE)
+            _finish_figure(fig, output_path)
         else:
             fig, ax = plt.subplots(figsize=(12, 8))
             _draw_one_plot(
@@ -674,8 +695,7 @@ def plot_optimal_and_retraction(
                 "",
                 use_windowed_curve=True,
             )
-            plt.tight_layout()
-            plt.show()
+            _finish_figure(fig, output_path)
         return
 
     # Single method (sunderhof or cvxpy)
@@ -707,17 +727,15 @@ def plot_optimal_and_retraction(
         ax_err.set_yscale("log")
         ax_err.grid(True, alpha=0.3)
         ax_err.set_xlim([0, 1])
-        ax_err.set_xlabel(r"$x$", fontsize=16)
-        ax_err.set_ylabel("Error", fontsize=16)
-        plt.tight_layout()
-        plt.show()
+        ax_err.set_xlabel(r"$x$", fontsize=AXIS_LABEL_FONTSIZE)
+        ax_err.set_ylabel("Error", fontsize=AXIS_LABEL_FONTSIZE)
+        _finish_figure(fig, output_path)
         return
 
     print("Creating plot...")
     fig, ax = plt.subplots(figsize=(12, 8))
     _draw_one_plot(ax, xlist, targ_value, coef_full, coef_recovered_full, M, "")
-    plt.tight_layout()
-    plt.show()
+    _finish_figure(fig, output_path)
 
 
 def main() -> None:
@@ -787,6 +805,12 @@ def main() -> None:
         default=1e-6,
         help="Approximation error ε for P_Θ when --use-p-theta (default: 1e-6).",
     )
+    parser.add_argument(
+        "--output",
+        type=str,
+        default=None,
+        help="Output figure path (default: figures/mat_inv_ex.pdf).",
+    )
 
     args = parser.parse_args()
 
@@ -797,6 +821,12 @@ def main() -> None:
         raise SystemExit("Error: a must lie in (0,1).")
     if not (0.0 < args.delta <= 1.0):
         raise SystemExit("Error: delta must lie in (0, 1].")
+
+    if args.output is None:
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        output_path = os.path.join(script_dir, "figures", "mat_inv_ex.pdf")
+    else:
+        output_path = args.output
 
     print(
         f"Using a={args.a}, n={args.n} (degree d={2*args.n-1}), N_weiss={args.N_weiss}, "
@@ -814,6 +844,7 @@ def main() -> None:
         use_p_theta=args.use_p_theta,
         p_theta_eps=args.p_theta_eps,
         a_window=args.a_window,
+        output_path=output_path,
     )
 
 

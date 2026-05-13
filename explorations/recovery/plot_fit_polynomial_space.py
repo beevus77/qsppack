@@ -10,7 +10,11 @@ import argparse
 # Set LaTeX fonts
 plt.rcParams['text.usetex'] = True
 plt.rcParams['font.family'] = 'serif'
-plt.rcParams['font.size'] = 12
+plt.rcParams['font.size'] = 18
+
+AXIS_LABEL_FONTSIZE = 20
+TICK_LABEL_FONTSIZE = 18
+LEGEND_FONTSIZE = 18
 
 
 def chebval_dct(c, M):
@@ -34,7 +38,7 @@ def chebval_dct(c, M):
     return dct(c_pad, type=1, norm=None)
 
 
-def plot_fit_from_csv(csv_filename, npts_value=None, ploterror=False):
+def plot_fit_from_csv(csv_filename, npts_value=None, ploterror=False, output_path=None):
     """
     Plot polynomial approximation and recovered polynomial against true function
     using data from CSV file produced by fgt_polynomial_space.py.
@@ -105,8 +109,9 @@ def plot_fit_from_csv(csv_filename, npts_value=None, ploterror=False):
     ax_left.grid(True, alpha=0.3)
     ax_left.set_xlim([-1, 1])
     ax_left.set_ylim([-1.1, 1.1])
-    ax_left.legend(loc='best', framealpha=1, fontsize=13)
+    ax_left.legend(loc='best', framealpha=1, fontsize=LEGEND_FONTSIZE)
     ax_left.set_xlabel('')
+    ax_left.tick_params(axis='both', labelsize=TICK_LABEL_FONTSIZE)
 
     if ploterror:
         s = float(np.max(np.abs(func_value)))
@@ -134,7 +139,11 @@ def plot_fit_from_csv(csv_filename, npts_value=None, ploterror=False):
         ax_right.grid(True, alpha=0.3, which="both")
         ax_right.set_xlim([-a, a])
         ax_right.set_xlabel('')
-        ax_right.set_ylabel('Absolute error from target (log)')
+        ax_right.set_ylabel(
+            'Absolute error from target (log)',
+            fontsize=AXIS_LABEL_FONTSIZE,
+        )
+        ax_right.tick_params(axis='both', labelsize=TICK_LABEL_FONTSIZE)
         handles, labels = ax_right.get_legend_handles_labels()
         order = [2, 1, 0]  # Retraction, Scaled, Unscaled
         ax_right.legend(
@@ -142,11 +151,18 @@ def plot_fit_from_csv(csv_filename, npts_value=None, ploterror=False):
             [labels[i] for i in order],
             loc='best',
             framealpha=1,
-            fontsize=13,
+            fontsize=LEGEND_FONTSIZE,
         )
 
     fig.tight_layout()
-    plt.show()
+    if output_path is None:
+        raise ValueError("output_path must be provided.")
+    output_dir = os.path.dirname(os.path.abspath(output_path))
+    if output_dir:
+        os.makedirs(output_dir, exist_ok=True)
+    fig.savefig(output_path, bbox_inches='tight')
+    plt.close(fig)
+    print(f"Figure saved to: {output_path}")
 
 
 if __name__ == "__main__":
@@ -158,12 +174,20 @@ if __name__ == "__main__":
                        help='Path to CSV file (default: auto-detect)')
     parser.add_argument('--ploterror', action='store_true',
                        help='Show two subplots: fit (left) and error comparison (right).')
+    parser.add_argument('--output', type=str, default=None,
+                       help='Output figure path (default: figures/retraction_error_comp.pdf)')
 
     args = parser.parse_args()
 
     # Determine data directory
     script_dir = os.path.dirname(os.path.abspath(__file__))
     data_dir = os.path.join(script_dir, "data")
+    figures_dir = os.path.join(script_dir, "figures")
+    output_path = (
+        args.output
+        if args.output is not None
+        else os.path.join(figures_dir, "retraction_error_comp.pdf")
+    )
 
     # Determine CSV filename
     if args.csv:
@@ -193,6 +217,11 @@ if __name__ == "__main__":
         raise SystemExit(1)
 
     # Plot from CSV
-    plot_fit_from_csv(csv_filename, args.npts, ploterror=args.ploterror)
+    plot_fit_from_csv(
+        csv_filename,
+        args.npts,
+        ploterror=args.ploterror,
+        output_path=output_path,
+    )
 
 
