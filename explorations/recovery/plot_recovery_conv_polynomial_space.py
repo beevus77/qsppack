@@ -18,10 +18,16 @@ import csv
 # Use LaTeX for all text (labels, legend, titles); match mat_inv_ex.py font sizes
 plt.rcParams['text.usetex'] = True
 plt.rcParams['font.family'] = 'serif'
-plt.rcParams['font.size'] = 14
-plt.rcParams['axes.titlesize'] = 18
-plt.rcParams['axes.labelsize'] = 16
-plt.rcParams['legend.fontsize'] = 14
+plt.rcParams['font.size'] = 24
+plt.rcParams['axes.titlesize'] = 28
+plt.rcParams['axes.labelsize'] = 26
+plt.rcParams['legend.fontsize'] = 18
+plt.rcParams['xtick.labelsize'] = 24
+plt.rcParams['ytick.labelsize'] = 24
+
+AXIS_LABEL_FONTSIZE = 26
+TITLE_FONTSIZE = 28
+LEGEND_FONTSIZE = 18
 
 # Colors matching degree_scaling_thresh_proj.py
 BLUE = "#0072B2"
@@ -198,10 +204,13 @@ def plot_recovery_convergence_polyspace(csv_filename, deg=101, M=10_000_000, plo
                                    pd.isna(row.get('max_abs_coef', np.nan)) or
                                    pd.isna(row.get('max_abs_rec', np.nan)))
         
-        need_compute_gt_diff = (pd.isna(row.get(sup_diff_col, np.nan)) or 
-                               pd.isna(row.get(sup_diff_rec_col, np.nan)) or
-                               pd.isna(row.get(diff_coef_col, np.nan)) or
-                               pd.isna(row.get(diff_rec_col, np.nan)))
+        need_compute_gt_diff = (
+            plot_type == 'infty'
+            and (
+                pd.isna(row.get(sup_diff_col, np.nan))
+                or pd.isna(row.get(sup_diff_rec_col, np.nan))
+            )
+        )
         
         need_compute = need_compute_constraint or need_compute_gt_diff
         
@@ -209,8 +218,8 @@ def plot_recovery_convergence_polyspace(csv_filename, deg=101, M=10_000_000, plo
             # Use cached values
             violated_coef = bool(row['constraint_violated_coef'])
             violated_rec = bool(row['constraint_violated_rec'])
-            sup_diff = float(row[sup_diff_col])
-            sup_diff_rec = float(row[sup_diff_rec_col])
+            sup_diff = float(row.get(sup_diff_col, row.get('sup_diff', np.nan)))
+            sup_diff_rec = float(row.get(sup_diff_rec_col, row.get('sup_diff_rec', np.nan)))
             max_abs_coef = float(row['max_abs_coef'])
             max_abs_rec = float(row['max_abs_rec'])
         else:
@@ -320,15 +329,15 @@ def plot_recovery_convergence_polyspace(csv_filename, deg=101, M=10_000_000, plo
 
     # Grid and labels (no title)
     ax.grid(True, alpha=0.3)
-    ax.set_xlabel('npts', fontsize=16)
+    ax.set_xlabel('npts', fontsize=AXIS_LABEL_FONTSIZE)
     if plot_type == 'infty':
-        ax.set_ylabel('Function ∞-norm difference', fontsize=16)
+        ax.set_ylabel('Function ∞-norm difference', fontsize=AXIS_LABEL_FONTSIZE)
     else:
-        ax.set_ylabel('Coefficient 2-norm difference', fontsize=16)
-    ax.legend(handles=legend_elements, loc='upper right', fontsize=14)
+        ax.set_ylabel('Coefficient 2-norm difference', fontsize=AXIS_LABEL_FONTSIZE)
+    ax.legend(handles=legend_elements, loc="best", fontsize=LEGEND_FONTSIZE)
 
     if ax is not None and subplot_title is not None:
-        ax.set_title(subplot_title, fontsize=18)
+        ax.set_title(subplot_title, fontsize=TITLE_FONTSIZE)
 
     if ax is None:
         plt.tight_layout()
@@ -406,9 +415,13 @@ def plot_max_constraint_violation(csv_filename, deg=101):
     
     # Grid and labels
     ax.grid(True, alpha=0.3)
-    ax.set_xlabel('npts', fontsize=16)
-    ax.set_ylabel('Maximum Constraint Violation', fontsize=16)
-    ax.set_title(f'Maximum Constraint Violations (degree {deg})', fontsize=18, pad=20)
+    ax.set_xlabel('npts', fontsize=AXIS_LABEL_FONTSIZE)
+    ax.set_ylabel('Maximum Constraint Violation', fontsize=AXIS_LABEL_FONTSIZE)
+    ax.set_title(
+        f'Maximum Constraint Violations (degree {deg})',
+        fontsize=TITLE_FONTSIZE,
+        pad=20,
+    )
     
     plt.tight_layout()
     
@@ -440,6 +453,8 @@ def main():
                        help='Plot maximum constraint violations instead of convergence analysis')
     parser.add_argument('--ground-truth-npts', type=int, default=None,
                        help='Specific npts value to use as ground truth (default: None = use largest npts)')
+    parser.add_argument('--output', type=str, default=None,
+                       help='Output path for the generated convergence figure')
 
     args = parser.parse_args()
 
@@ -456,6 +471,11 @@ def main():
             out_name = args.csv.replace('.csv', '_two_panels_inf_convergence.png')
         else:
             out_name = args.csv.replace('.csv', '_two_panels_polyspace_convergence.pdf')
+        if args.output is not None:
+            out_name = args.output
+        out_dir = os.path.dirname(os.path.abspath(out_name))
+        if out_dir:
+            os.makedirs(out_dir, exist_ok=True)
         plt.savefig(out_name, dpi=300, bbox_inches='tight')
         print(f"Two-panel plot saved to: {out_name}")
         if args.max_violations:

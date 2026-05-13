@@ -31,6 +31,11 @@ BLUE = "#0072B2"
 MAIZE = "#E69F00"
 GREEN = "#009E73"
 
+BASE_FONTSIZE = 20
+AXIS_LABEL_FONTSIZE = 22
+TITLE_FONTSIZE = 24
+LEGEND_FONTSIZE = 14
+
 
 def _mathtext_log_tick_label(x: float, pos=None) -> str:
     """Format positive x as m×10^e for log-scale axis ticks (FixedLocator positions)."""
@@ -44,6 +49,27 @@ def _mathtext_log_tick_label(x: float, pos=None) -> str:
     if abs(m - m_int) < 1e-5 and m_int != 0:
         return rf"${m_int}\times 10^{{{exp}}}$"
     return rf"${m:g}\times 10^{{{exp}}}$"
+
+def _set_readable_log_y_ticks(ax: Axes, y_lo: float, y_hi: float) -> None:
+    """Label a few intermediate log ticks so narrow ranges have scale context."""
+    if y_lo <= 0.0 or y_hi <= 0.0 or not (np.isfinite(y_lo) and np.isfinite(y_hi)):
+        return
+
+    exp_lo = int(np.floor(np.log10(y_lo) - 1e-12))
+    exp_hi = int(np.ceil(np.log10(y_hi) + 1e-12))
+    tickvals: list[float] = []
+    for e in range(exp_lo, exp_hi + 1):
+        base = 10.0**e
+        for m in (1, 2, 5):
+            v = m * base
+            if y_lo <= v <= y_hi:
+                tickvals.append(v)
+
+    if tickvals:
+        ax.yaxis.set_major_locator(FixedLocator(np.asarray(tickvals)))
+        ax.yaxis.set_major_formatter(FuncFormatter(_mathtext_log_tick_label))
+        ax.yaxis.set_minor_locator(NullLocator())
+
 
 # Marker sizes for 2-norm polynomial-space plots (BLUE = fit, MAIZE = retraction)
 MARKERSIZE_BLUE_X = 10  # 'x' when constraints violated
@@ -224,12 +250,16 @@ def _plot_degree_scaling_on_ax(
             )
         ax.yaxis.set_major_locator(FixedLocator(np.asarray(tickvals)))
         ax.yaxis.set_major_formatter(FuncFormatter(_mathtext_log_tick_label))
-    ax.set_xlabel("Polynomial degree")
-    ax.set_ylabel("Maximum error vs target")
+    else:
+        y_lo, y_hi = ax.get_ylim()
+        _set_readable_log_y_ticks(ax, y_lo, y_hi)
+    ax.set_xlabel("Polynomial degree", fontsize=AXIS_LABEL_FONTSIZE)
+    ax.set_ylabel("Maximum error vs target", fontsize=AXIS_LABEL_FONTSIZE)
     ax.xaxis.set_major_locator(FixedLocator(degrees_clamped))
     ax.xaxis.set_minor_locator(NullLocator())
     ax.set_xticks(degrees_clamped)
     ax.set_xticklabels([rf"$2^{{{e:g}}}$" for e in exponents])
+    ax.tick_params(axis="both", labelsize=BASE_FONTSIZE)
     ax.grid(True, which="both", alpha=0.3)
     legend_elements = [
         Line2D(
@@ -240,7 +270,7 @@ def _plot_degree_scaling_on_ax(
             linestyle="None",
             markersize=MARKERSIZE_BLUE_X,
             markeredgewidth=2,
-            label="Polynomial max error (constraints violated)",
+            label="Polynomial max error\n(constraints violated)",
         ),
         Line2D(
             [0],
@@ -250,7 +280,7 @@ def _plot_degree_scaling_on_ax(
             linestyle="None",
             markersize=MARKERSIZE_BLUE_O,
             fillstyle="none",
-            label="Polynomial max error (constraints satisfied)",
+            label="Polynomial max error\n(constraints satisfied)",
         ),
         Line2D(
             [0],
@@ -263,7 +293,7 @@ def _plot_degree_scaling_on_ax(
             label="Retracted polynomial max error",
         ),
     ]
-    ax.legend(handles=legend_elements, loc="best")
+    ax.legend(handles=legend_elements, loc="best", fontsize=LEGEND_FONTSIZE)
 
 
 def plot_pointwise_retraction_and_scaled_poly_errors_on_ax(
@@ -324,18 +354,20 @@ def plot_pointwise_retraction_and_scaled_poly_errors_on_ax(
     max_p_ps = float(np.max(np.abs(p / s - p)))
 
     ax.set_yscale("log")
-    ax.set_xlabel("$x$")
-    ax.set_ylabel("Absolute error")
+    ax.set_xlabel("$x$", fontsize=AXIS_LABEL_FONTSIZE)
+    ax.set_ylabel("Absolute error", fontsize=AXIS_LABEL_FONTSIZE)
     ax.set_xlim([float(x_lo), float(x_hi)])
+    ax.tick_params(axis="both", labelsize=BASE_FONTSIZE)
     ax.grid(True, which="both", alpha=0.3)
-    ax.legend(loc="best")
+    ax.legend(loc="best", fontsize=LEGEND_FONTSIZE)
     deg = int(row["degree"])
     csv_q = float(row["max_error_qsp"])
     ax.set_title(
         f"Pointwise errors (degree {deg})\n"
         f"max |q-f|={max_err_qsp:.2e} (CSV {csv_q:.2e}), "
         f"max |p/s-f|={max_err_scaled_poly:.2e}, max |p-f|={max_err_fit_poly:.2e}\n"
-        f"s={s:.10f}, max|q-p|={max_qp:.2e}, max|p/s-p|={max_p_ps:.2e}"
+        f"s={s:.10f}, max|q-p|={max_qp:.2e}, max|p/s-p|={max_p_ps:.2e}",
+        fontsize=TITLE_FONTSIZE,
     )
 
 
@@ -371,11 +403,11 @@ def plot_summary_and_pointwise_errors(
     row = matches.iloc[0]
 
     plt.rcParams["font.family"] = "serif"
-    plt.rcParams["font.size"] = 12
+    plt.rcParams["font.size"] = BASE_FONTSIZE
 
     fig, (ax0, ax1) = plt.subplots(1, 2, figsize=(14, 6))
     _plot_degree_scaling_on_ax(ax0, data, refinescale=refinescale)
-    ax0.set_title("Max error vs degree")
+    ax0.set_title("Max error vs degree", fontsize=TITLE_FONTSIZE)
     plot_pointwise_retraction_and_scaled_poly_errors_on_ax(
         ax1, row, target_fn, x_lo, x_hi
     )
@@ -402,7 +434,7 @@ def plot_summary(
     data = _load_degree_scaling_dataframe(csv_path, leave_out_last, max_exp)
 
     plt.rcParams["font.family"] = "serif"
-    plt.rcParams["font.size"] = 12
+    plt.rcParams["font.size"] = BASE_FONTSIZE
 
     fig, ax = plt.subplots(figsize=(8, 6))
     _plot_degree_scaling_on_ax(ax, data, refinescale=refinescale)

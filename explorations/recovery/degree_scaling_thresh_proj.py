@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""
+r"""
 Degree-scaling experiment for the threshold projection problem.
 
 This script now serves two roles:
@@ -55,6 +55,23 @@ MARKERSIZE_BLUE_X = 10  # 'x' when constraints violated
 MARKERSIZE_BLUE_O = 8  # 'o' when constraints satisfied
 MARKERSIZE_MAIZE_O = 12  # retraction (open circles)
 DELTA = 0.05
+
+# Match explorations/recovery/degree_scaling_plot.py (Fig 10 degree scaling)
+BASE_FONTSIZE = 20
+AXIS_LABEL_FONTSIZE = 22
+TITLE_FONTSIZE = 24
+LEGEND_FONTSIZE = 14
+
+
+def _apply_summary_plot_font_rcparams() -> None:
+    plt.rcParams["font.family"] = "serif"
+    plt.rcParams["font.size"] = BASE_FONTSIZE
+    plt.rcParams["axes.titlesize"] = TITLE_FONTSIZE
+    plt.rcParams["axes.labelsize"] = AXIS_LABEL_FONTSIZE
+    plt.rcParams["legend.fontsize"] = LEGEND_FONTSIZE
+    plt.rcParams["xtick.labelsize"] = BASE_FONTSIZE
+    plt.rcParams["ytick.labelsize"] = BASE_FONTSIZE
+
 
 # Number of Chebyshev nodes for constraint check (|p(x)| <= 1 on [-1, 1])
 M_CHEB_CONSTRAINT = 1_000_000
@@ -494,8 +511,9 @@ def _plot_degree_scaling_on_ax(ax: Axes, data) -> None:
 
     ax.set_xscale("log")
     ax.set_yscale("log")
-    ax.set_xlabel("Polynomial degree")
-    ax.set_ylabel("Maximum error vs target")
+    ax.set_xlabel("Polynomial degree", fontsize=AXIS_LABEL_FONTSIZE)
+    ax.set_ylabel("Maximum error vs target", fontsize=AXIS_LABEL_FONTSIZE)
+    ax.tick_params(axis="both", labelsize=BASE_FONTSIZE)
     ax.xaxis.set_major_locator(FixedLocator(degrees_clamped))
     ax.xaxis.set_minor_locator(NullLocator())
     ax.set_xticks(degrees_clamped)
@@ -508,9 +526,9 @@ def _plot_degree_scaling_on_ax(ax: Axes, data) -> None:
             marker="x",
             color=BLUE,
             linestyle="None",
-            markersize=8,
+            markersize=MARKERSIZE_BLUE_X,
             markeredgewidth=2,
-            label="Polynomial max error (constraints violated)",
+            label="Polynomial max error\n(constraints violated)",
         ),
         Line2D(
             [0],
@@ -518,9 +536,9 @@ def _plot_degree_scaling_on_ax(ax: Axes, data) -> None:
             marker="o",
             color=BLUE,
             linestyle="None",
-            markersize=7,
+            markersize=MARKERSIZE_BLUE_O,
             fillstyle="none",
-            label="Polynomial max error (constraints satisfied)",
+            label="Polynomial max error\n(constraints satisfied)",
         ),
         Line2D(
             [0],
@@ -528,12 +546,12 @@ def _plot_degree_scaling_on_ax(ax: Axes, data) -> None:
             marker="o",
             color=MAIZE,
             linestyle="None",
-            markersize=5,
+            markersize=MARKERSIZE_MAIZE_O,
             fillstyle="none",
             label="Retracted polynomial max error",
         ),
     ]
-    ax.legend(handles=legend_elements, loc="best")
+    ax.legend(handles=legend_elements, loc="best", fontsize=LEGEND_FONTSIZE)
 
 
 def _max_abs_poly_on_interval_minus1_1(coef_full: np.ndarray) -> float:
@@ -620,17 +638,19 @@ def plot_pointwise_retraction_and_scaled_poly_errors_on_ax(
     max_p_ps = float(np.max(np.abs((p / s - p)[off_transition_mask])))
 
     ax.set_yscale("log")
-    ax.set_xlabel("$x$")
-    ax.set_ylabel("Absolute error")
+    ax.set_xlabel("$x$", fontsize=AXIS_LABEL_FONTSIZE)
+    ax.set_ylabel("Absolute error", fontsize=AXIS_LABEL_FONTSIZE)
     ax.set_xlim([0.0, 1.0])
+    ax.tick_params(axis="both", labelsize=BASE_FONTSIZE)
     ax.grid(True, which="both", alpha=0.3)
-    ax.legend(loc="best")
+    ax.legend(loc="best", fontsize=LEGEND_FONTSIZE)
     deg = int(row["degree"])
     ax.set_title(
         f"Pointwise errors (degree {deg})\n"
         f"max |q-f|={max_err_qsp:.2e}, max |p/s-f|={max_err_scaled_poly:.2e}, "
         f"max |p-f|={max_err_fit_poly:.2e}\n"
-        f"s={s:.10f}, max|q-p|={max_qp:.2e}, max|p/s-p|={max_p_ps:.2e}"
+        f"s={s:.10f}, max|q-p|={max_qp:.2e}, max|p/s-p|={max_p_ps:.2e}",
+        fontsize=TITLE_FONTSIZE,
     )
 
 
@@ -660,12 +680,11 @@ def plot_summary_and_pointwise_errors(
         raise ValueError(f"No CSV row found for degree {errordegree}.")
     row = matches.iloc[0]
 
-    plt.rcParams["font.family"] = "serif"
-    plt.rcParams["font.size"] = 12
+    _apply_summary_plot_font_rcparams()
 
     fig, (ax0, ax1) = plt.subplots(1, 2, figsize=(14, 6))
     _plot_degree_scaling_on_ax(ax0, data)
-    ax0.set_title("Max error vs degree")
+    ax0.set_title("Max error vs degree", fontsize=TITLE_FONTSIZE)
     plot_pointwise_retraction_and_scaled_poly_errors_on_ax(ax1, row)
 
     fig.tight_layout()
@@ -686,8 +705,7 @@ def plot_summary(
     """
     data = _load_threshold_summary_dataframe(csv_path, leave_out_last, max_exp)
 
-    plt.rcParams["font.family"] = "serif"
-    plt.rcParams["font.size"] = 12
+    _apply_summary_plot_font_rcparams()
 
     fig, ax = plt.subplots(figsize=(8, 6))
     _plot_degree_scaling_on_ax(ax, data)
@@ -785,8 +803,7 @@ def plot_summary_both(
     else:
         exponents = np.log2(degrees_clamped)
 
-    plt.rcParams["font.family"] = "serif"
-    plt.rcParams["font.size"] = 12
+    _apply_summary_plot_font_rcparams()
 
     fig, ax = plt.subplots(figsize=(8, 6))
 
@@ -855,8 +872,9 @@ def plot_summary_both(
 
     ax.set_xscale("log")
     ax.set_yscale("log")
-    ax.set_xlabel("Polynomial degree")
-    ax.set_ylabel("Maximum error vs target")
+    ax.set_xlabel("Polynomial degree", fontsize=AXIS_LABEL_FONTSIZE)
+    ax.set_ylabel("Maximum error vs target", fontsize=AXIS_LABEL_FONTSIZE)
+    ax.tick_params(axis="both", labelsize=BASE_FONTSIZE)
     # Only show ticks/labels at our data points (integer and half-integer powers of 2)
     ax.xaxis.set_major_locator(FixedLocator(degrees_clamped))
     ax.xaxis.set_minor_locator(NullLocator())
@@ -897,7 +915,7 @@ def plot_summary_both(
         Line2D([0], [0], linestyle="--", color="k", label="npts = degree"),
         Line2D([0], [0], linestyle="-.", color="k", label="npts = 2·degree"),
     ]
-    ax.legend(handles=legend_elements, loc="best")
+    ax.legend(handles=legend_elements, loc="best", fontsize=LEGEND_FONTSIZE)
 
     fig.tight_layout()
     fig.savefig(fig_path, bbox_inches="tight")
@@ -1077,11 +1095,15 @@ def main() -> None:
                 max_exp=args.max_exp,
             )
         elif not args.no_summary_plot:
+            # Fig 13 convention: npts=2^19 summary shows degrees through 2^8 unless overridden.
+            summary_max_exp = args.max_exp
+            if summary_max_exp is None and int(args.npts) == 2**19:
+                summary_max_exp = 8
             plot_summary(
                 csv_path,
                 fig_path,
                 leave_out_last=args.leave_out_last,
-                max_exp=args.max_exp,
+                max_exp=summary_max_exp,
             )
 
     # Mode-based paths (single = 1x, double = 2x).
