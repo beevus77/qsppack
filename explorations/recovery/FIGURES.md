@@ -232,7 +232,29 @@ python degree_scaling_plot.py \
   --output figures/degree_scaling_mat_inv_npts19.pdf
 ```
 
-Fig 11 is intentionally omitted from this registry for now.
+## Fig 11
+
+Figure file:
+`figures/thresh_proj_inset.pdf`
+
+Data file:
+None. This figure fits the threshold-projection target and retracts with Weiss/NLFT inside `plot_thresh_proj_ex.py` (same pipeline as the former manual PowerPoint crop of the full-curve plot).
+
+Generate data:
+
+```bash
+# No separate data-generation step.
+```
+
+Generate figure (degree 128, `npts = 256`, matplotlib `inset_axes` + `mark_inset` with a tall inset on the left so the `1 ± 1e-5` band is readable; default data limits `x` in `[0.2, 0.45]` and `y` in `[1 - 1e-5, 1 + 1.1e-5]` (override with `--inset-xmin`, `--inset-xmax`, `--inset-ymin`, `--inset-ymax`). X-axis label size matches Fig 8; legend is slightly smaller and fixed to the upper right.
+
+```bash
+python plot_thresh_proj_ex.py \
+  --degree 128 \
+  --npts 256 \
+  --zoom-inset \
+  --output figures/thresh_proj_inset.pdf
+```
 
 ## Fig 12
 
