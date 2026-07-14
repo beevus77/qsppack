@@ -10,7 +10,7 @@ and produces:
 
 The plot is a log-log scatter with dual y-axes:
   x-axis: npts
-  left y-axis: ||<hbc*>||_X - 1 (blue x's)
+  left y-axis: ||<c-hat*, Phi>||_X - 1 (blue x's)
   right y-axis: TTS(s) (orange x's)
 """
 
@@ -20,15 +20,6 @@ import os
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-
-
-# Paper macros rendered via usetex (matches draft LaTeX notation).
-_LATEX_PREAMBLE = r"""
-\usepackage{amsmath}
-\newcommand{\norm}[2]{\left\|#1\right\|_{#2}}
-\newcommand{\inner}[1]{\langle#1\rangle}
-\newcommand{\hbc}{\hat{\mathbf{c}}}
-"""
 
 
 def main() -> None:
@@ -98,7 +89,7 @@ def main() -> None:
 
     # Use serif fonts + LaTeX consistent with other recovery plots
     plt.rcParams["text.usetex"] = True
-    plt.rcParams["text.latex.preamble"] = _LATEX_PREAMBLE
+    plt.rcParams["text.latex.preamble"] = r"\usepackage{amsmath}"
     plt.rcParams["font.family"] = "serif"
     plt.rcParams["font.size"] = 12
     axis_label_fontsize = 20
@@ -120,7 +111,7 @@ def main() -> None:
     ax.set_yscale("log")
     ax.set_xlabel("npts", fontsize=axis_label_fontsize)
     ax.set_ylabel(
-        r"$\norm{\inner{\hbc^\ast}}{X} - 1$",
+        r"$\lVert\langle\hat{\mathbf{c}}^*,\Phi\rangle\rVert_X - 1$",
         color="#0072B2",
         fontsize=axis_label_fontsize,
     )
