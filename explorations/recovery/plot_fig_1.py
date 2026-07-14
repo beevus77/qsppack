@@ -9,9 +9,9 @@ and produces:
   explorations/recovery/figures/fig_1_2.pdf
 
 The plot is a log-log scatter with dual y-axes:
-  x-axis: npts (number of discretization points)
-  left y-axis: max_violation (blue x's), max L-inf error on [0,a] (blue open circles)
-  right y-axis: optimization time in seconds (orange x's)
+  x-axis: npts
+  left y-axis: ||<hbc*>||_X - 1 (blue x's)
+  right y-axis: TTS(s) (orange x's)
 """
 
 import argparse
@@ -20,6 +20,15 @@ import os
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+
+
+# Paper macros rendered via usetex (matches draft LaTeX notation).
+_LATEX_PREAMBLE = r"""
+\usepackage{amsmath}
+\newcommand{\norm}[2]{\left\|#1\right\|_{#2}}
+\newcommand{\inner}[1]{\langle#1\rangle}
+\newcommand{\hbc}{\hat{\mathbf{c}}}
+"""
 
 
 def main() -> None:
@@ -87,7 +96,9 @@ def main() -> None:
     y_clamped = np.where(y > 0.0, y, 1e-16)
     t_clamped = np.where(t > 0.0, t, 1e-16)
 
-    # Use serif fonts consistent with other recovery plots
+    # Use serif fonts + LaTeX consistent with other recovery plots
+    plt.rcParams["text.usetex"] = True
+    plt.rcParams["text.latex.preamble"] = _LATEX_PREAMBLE
     plt.rcParams["font.family"] = "serif"
     plt.rcParams["font.size"] = 12
     axis_label_fontsize = 20
@@ -107,9 +118,9 @@ def main() -> None:
     #     )
     ax.set_xscale("log")
     ax.set_yscale("log")
-    ax.set_xlabel("Number of discretization points", fontsize=axis_label_fontsize)
+    ax.set_xlabel("npts", fontsize=axis_label_fontsize)
     ax.set_ylabel(
-        "Maximum constraint violation",
+        r"$\norm{\inner{\hbc^\ast}}{X} - 1$",
         color="#0072B2",
         fontsize=axis_label_fontsize,
     )
@@ -121,7 +132,7 @@ def main() -> None:
     ax2.scatter(x, t_clamped, marker="x", color="#E69F00", s=60, linewidths=2)
     ax2.set_yscale("log")
     ax2.set_ylabel(
-        "Time to solution (s)",
+        r"TTS(s)",
         color="#E69F00",
         rotation=270,
         labelpad=15,
