@@ -103,14 +103,27 @@ def plot_fit_from_csv(csv_filename, npts_value=None, ploterror=False, output_pat
         fig, ax_left = plt.subplots(figsize=(12, 8))
 
     # Use colorblind-friendly colors: black, blue (safe), and orange
-    ax_left.plot(xlist, targ_value, label='Target', color='black', linewidth=2)
-    ax_left.plot(xlist, func_value, label='Polynomial Approximation', color='#0072B2', linewidth=2)  # Blue
-    ax_left.plot(xlist, recovered_value, label='Retraction', color='#E69F00', linewidth=2, linestyle='--')  # Orange
+    ax_left.plot(xlist, targ_value, label=r'$g_{\mathrm{SV}}$', color='black', linewidth=2)
+    ax_left.plot(
+        xlist,
+        func_value,
+        label=r'$\left\langle\hat{\mathbf{c}}^{*},\Phi\right\rangle$',
+        color='#0072B2',
+        linewidth=2,
+    )
+    ax_left.plot(
+        xlist,
+        recovered_value,
+        label=r'$\mathcal{R}(\left\langle\hat{\mathbf{c}}^{*},\Phi\right\rangle)$',
+        color='#E69F00',
+        linewidth=2,
+        linestyle='--',
+    )
     ax_left.grid(True, alpha=0.3)
-    ax_left.set_xlim([-1, 1])
+    ax_left.set_xlim([0, 1])
     ax_left.set_ylim([-1.1, 1.1])
-    ax_left.legend(loc='best', framealpha=1, fontsize=LEGEND_FONTSIZE)
-    ax_left.set_xlabel('')
+    ax_left.legend(loc='lower right', framealpha=1, fontsize=LEGEND_FONTSIZE)
+    ax_left.set_xlabel(r'$x$', fontsize=AXIS_LABEL_FONTSIZE)
     ax_left.tick_params(axis='both', labelsize=TICK_LABEL_FONTSIZE)
 
     if ploterror:
@@ -122,8 +135,8 @@ def plot_fit_from_csv(csv_filename, npts_value=None, ploterror=False, output_pat
         abs_err_scaled = np.maximum(np.abs(func_value / s - targ_value), floor)
         abs_err_poly = np.maximum(np.abs(func_value - targ_value), floor)
 
-        # Error plot only on domain of interest [-a, a]
-        domain_mask = np.abs(xlist) <= a
+        # Odd parity determines the negative side, so show only the fitted positive interval.
+        domain_mask = (xlist >= 0.0) & (xlist <= a)
         x_domain = xlist[domain_mask]
         order = np.argsort(x_domain)
         x_domain = x_domain[order]
@@ -132,24 +145,46 @@ def plot_fit_from_csv(csv_filename, npts_value=None, ploterror=False, output_pat
         err_poly_domain = abs_err_poly[domain_mask][order]
 
         # Draw order and styles: unscaled bottom (blue solid), scaled (green solid), retraction on top (orange dashed)
-        ax_right.plot(x_domain, err_poly_domain, color='#0072B2', linewidth=1.5, label='Unscaled', zorder=1)
-        ax_right.plot(x_domain, err_scaled_domain, color='#009E73', linewidth=1.5, label='Scaled', zorder=2)
-        ax_right.plot(x_domain, err_recovered_domain, color='#E69F00', linewidth=1.6, linestyle='--', label='Retraction', zorder=3)
+        ax_right.plot(
+            x_domain,
+            err_poly_domain,
+            color='#0072B2',
+            linewidth=1.5,
+            label=r'$\left\langle\hat{\mathbf{c}}^{*},\Phi\right\rangle$',
+            zorder=1,
+        )
+        ax_right.plot(
+            x_domain,
+            err_scaled_domain,
+            color='#009E73',
+            linewidth=1.5,
+            label=r'Scaled $\left\langle\hat{\mathbf{c}}^{*},\Phi\right\rangle$',
+            zorder=2,
+        )
+        ax_right.plot(
+            x_domain,
+            err_recovered_domain,
+            color='#E69F00',
+            linewidth=1.6,
+            linestyle='--',
+            label=r'$\mathcal{R}(\left\langle\hat{\mathbf{c}}^{*},\Phi\right\rangle)$',
+            zorder=3,
+        )
         ax_right.set_yscale("log")
         ax_right.grid(True, alpha=0.3, which="both")
-        ax_right.set_xlim([-a, a])
-        ax_right.set_xlabel('')
+        ax_right.set_xlim([0.0, a])
+        ax_right.set_xlabel(r'$x$', fontsize=AXIS_LABEL_FONTSIZE)
         ax_right.set_ylabel(
-            'Absolute error from target (log)',
+            r'$\left|P(x)-g_{\strut\mathrm{SV}}(x)\right|$ (log scale)',
             fontsize=AXIS_LABEL_FONTSIZE,
         )
         ax_right.tick_params(axis='both', labelsize=TICK_LABEL_FONTSIZE)
         handles, labels = ax_right.get_legend_handles_labels()
-        order = [2, 1, 0]  # Retraction, Scaled, Unscaled
+        order = [1, 0, 2]  # Scaled, Unscaled, Retraction
         ax_right.legend(
             [handles[i] for i in order],
             [labels[i] for i in order],
-            loc='best',
+            loc='lower right',
             framealpha=1,
             fontsize=LEGEND_FONTSIZE,
         )
@@ -223,5 +258,3 @@ if __name__ == "__main__":
         ploterror=args.ploterror,
         output_path=output_path,
     )
-
-

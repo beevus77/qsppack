@@ -348,15 +348,19 @@ def _draw_one_plot(
     title: str,
     legend_loc: str = "upper right",
     use_windowed_curve: bool = False,
+    legend_labels: tuple[str, str, str] | None = None,
 ) -> None:
     """Draw target, polynomial fit, and either retraction or windowed curve on a single axes."""
     func_value = chebval_dct(coef_full, M)
     recovered_value = chebval_dct(coef_recovered_full, M)
-    ax.plot(xlist, targ_value, label="Target", color="black", linewidth=3)
+    if legend_labels is None:
+        legend_labels = ("Target", "Polynomial Fit", "Windowed" if use_windowed_curve else "Retraction")
+    target_label, fit_label, transformed_label = legend_labels
+    ax.plot(xlist, targ_value, label=target_label, color="black", linewidth=3)
     ax.plot(
         xlist,
         func_value,
-        label="Polynomial Fit",
+        label=fit_label,
         color="#0072B2",
         linewidth=2,
     )
@@ -364,7 +368,7 @@ def _draw_one_plot(
         ax.plot(
             xlist,
             recovered_value,
-            label="Windowed",
+            label=transformed_label,
             color="#E69F00",
             linewidth=2,
             linestyle="--",
@@ -373,7 +377,7 @@ def _draw_one_plot(
         ax.plot(
             xlist,
             recovered_value,
-            label="Retraction",
+            label=transformed_label,
             color="#E69F00",
             linewidth=2,
             linestyle="--",
@@ -488,7 +492,10 @@ def plot_optimal_and_retraction(
                 ax_err.set_xlabel(r"$x$", fontsize=AXIS_LABEL_FONTSIZE)
                 # Only label error y-axis on the far-left subplot
                 if ax_err is ax_err_left:
-                    ax_err.set_ylabel("Error", fontsize=AXIS_LABEL_FONTSIZE)
+                    ax_err.set_ylabel(
+                        r"$\left|P(x)-g_{\strut\mathrm{MI}}(x)\right|$",
+                        fontsize=AXIS_LABEL_FONTSIZE,
+                    )
             # Hide y-axis ticks/labels on the right error subplot only
             ax_err_right.tick_params(labelleft=False)
             # Hide x-axis tick labels on the top row (shared x with error plots)
@@ -534,7 +541,13 @@ def plot_optimal_and_retraction(
             )
             _draw_one_plot(
                 ax_w, xlist, targ_value, coef_w, coef_w_rec, M,
-                f"Optimal + Window\n(deg {2*n-1}+{2*n})", use_windowed_curve=True,
+                f"Optimal + Window\n(deg {2*n-1}+{2*n})",
+                use_windowed_curve=True,
+                legend_labels=(
+                    r"$g_{\mathrm{MI}}$",
+                    r"$\left\langle\widetilde{\mathbf{c}},\Phi\right\rangle$",
+                    r"$\left\langle\widetilde{\mathbf{c}},\Phi\right\rangle$ Windowed",
+                ),
             )
             ax_w.set_ylim(-0.07, 1.55)
             ax_w.set_xlabel("")
@@ -550,7 +563,10 @@ def plot_optimal_and_retraction(
             ax_err_w.grid(True, alpha=0.3)
             ax_err_w.set_xlim([0, 1])
             ax_err_w.set_xlabel(r"$x$", fontsize=AXIS_LABEL_FONTSIZE)
-            ax_err_w.set_ylabel("Error", fontsize=AXIS_LABEL_FONTSIZE)
+            ax_err_w.set_ylabel(
+                r"$\left|P(x)-g_{\strut\mathrm{MI}}(x)\right|$",
+                fontsize=AXIS_LABEL_FONTSIZE,
+            )
             # Sunderhof (center)
             coef_s = get_coef_full(a, n, "sunderhof")
             b_s = b_from_cheb(coef_s[parity::2], parity)
@@ -562,6 +578,11 @@ def plot_optimal_and_retraction(
             _draw_one_plot(
                 ax_s, xlist, targ_value, coef_s, coef_s_rec, M,
                 f"Optimal + Retraction\n(deg {deg_label})",
+                legend_labels=(
+                    r"$g_{\mathrm{MI}}$",
+                    r"$\left\langle\widetilde{\mathbf{c}},\Phi\right\rangle$",
+                    r"$\mathcal{R}(\left\langle\widetilde{\mathbf{c}},\Phi\right\rangle)$",
+                ),
             )
             ax_s.set_ylim(-0.07, 1.55)
             ax_s.set_xlabel("")
@@ -589,6 +610,11 @@ def plot_optimal_and_retraction(
             _draw_one_plot(
                 ax_c, xlist, targ_value, coef_c, coef_c_rec, M,
                 f"Optimal Constrained + Retraction\n(deg {deg_label})",
+                legend_labels=(
+                    r"$g_{\mathrm{MI}}$",
+                    r"$\left\langle\hat{\mathbf{c}}^{*},\Phi\right\rangle$",
+                    r"$\mathcal{R}(\left\langle\hat{\mathbf{c}}^{*},\Phi\right\rangle)$",
+                ),
             )
             ax_c.set_ylim(-1.07, 1.07)
             ax_c.set_xlabel("")
@@ -681,7 +707,10 @@ def plot_optimal_and_retraction(
             ax_err.grid(True, alpha=0.3)
             ax_err.set_xlim([0, 1])
             ax_err.set_xlabel(r"$x$", fontsize=AXIS_LABEL_FONTSIZE)
-            ax_err.set_ylabel("Error", fontsize=AXIS_LABEL_FONTSIZE)
+            ax_err.set_ylabel(
+                r"$\left|P(x)-g_{\strut\mathrm{MI}}(x)\right|$",
+                fontsize=AXIS_LABEL_FONTSIZE,
+            )
             _finish_figure(fig, output_path)
         else:
             fig, ax = plt.subplots(figsize=(12, 8))
@@ -728,7 +757,10 @@ def plot_optimal_and_retraction(
         ax_err.grid(True, alpha=0.3)
         ax_err.set_xlim([0, 1])
         ax_err.set_xlabel(r"$x$", fontsize=AXIS_LABEL_FONTSIZE)
-        ax_err.set_ylabel("Error", fontsize=AXIS_LABEL_FONTSIZE)
+        ax_err.set_ylabel(
+            r"$\left|P(x)-g_{\strut\mathrm{MI}}(x)\right|$",
+            fontsize=AXIS_LABEL_FONTSIZE,
+        )
         _finish_figure(fig, output_path)
         return
 
@@ -850,4 +882,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

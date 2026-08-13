@@ -157,9 +157,20 @@ def main() -> None:
     _apply_fig8_style()
     fig, ax = plt.subplots()
 
-    ax.plot(xlist, targ_value, "k", label="Target")
-    ax.plot(xlist, func_value, color=BLUE, label="Polynomial approximation")
-    ax.plot(xlist, qsp_value, "--", color=MAIZE, label="Retraction")
+    ax.plot(xlist, targ_value, "k", label=r"$g_{\mathrm{TP}}$")
+    ax.plot(
+        xlist,
+        func_value,
+        color=BLUE,
+        label=r"$\left\langle\hat{\mathbf{c}}^{*},\Phi\right\rangle$",
+    )
+    ax.plot(
+        xlist,
+        qsp_value,
+        "--",
+        color=MAIZE,
+        label=r"$\mathcal{R}(\left\langle\hat{\mathbf{c}}^{*},\Phi\right\rangle)$",
+    )
     ax.set_xlabel(r"$x$", fontsize=AXIS_LABEL_FONTSIZE)
     ax.grid()
     if not args.hide_legend:

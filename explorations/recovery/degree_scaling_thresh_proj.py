@@ -64,6 +64,7 @@ LEGEND_FONTSIZE = 14
 
 
 def _apply_summary_plot_font_rcparams() -> None:
+    plt.rcParams["text.usetex"] = True
     plt.rcParams["font.family"] = "serif"
     plt.rcParams["font.size"] = BASE_FONTSIZE
     plt.rcParams["axes.titlesize"] = TITLE_FONTSIZE
@@ -511,8 +512,11 @@ def _plot_degree_scaling_on_ax(ax: Axes, data) -> None:
 
     ax.set_xscale("log")
     ax.set_yscale("log")
-    ax.set_xlabel("Polynomial degree", fontsize=AXIS_LABEL_FONTSIZE)
-    ax.set_ylabel("Maximum error vs target", fontsize=AXIS_LABEL_FONTSIZE)
+    ax.set_xlabel(r"$d$", fontsize=AXIS_LABEL_FONTSIZE)
+    ax.set_ylabel(
+        r"$\left\Vert P-g_{\mathrm{TP}}\right\Vert_Y$",
+        fontsize=AXIS_LABEL_FONTSIZE,
+    )
     ax.tick_params(axis="both", labelsize=BASE_FONTSIZE)
     ax.xaxis.set_major_locator(FixedLocator(degrees_clamped))
     ax.xaxis.set_minor_locator(NullLocator())
@@ -523,22 +527,22 @@ def _plot_degree_scaling_on_ax(ax: Axes, data) -> None:
         Line2D(
             [0],
             [0],
-            marker="x",
-            color=BLUE,
-            linestyle="None",
-            markersize=MARKERSIZE_BLUE_X,
-            markeredgewidth=2,
-            label="Polynomial max error\n(constraints violated)",
-        ),
-        Line2D(
-            [0],
-            [0],
             marker="o",
             color=BLUE,
             linestyle="None",
             markersize=MARKERSIZE_BLUE_O,
             fillstyle="none",
-            label="Polynomial max error\n(constraints satisfied)",
+            label=r"$\left\langle\hat{\mathbf{c}}^{*},\Phi\right\rangle\in\mathcal{Z}(F)$",
+        ),
+        Line2D(
+            [0],
+            [0],
+            marker="x",
+            color=BLUE,
+            linestyle="None",
+            markersize=MARKERSIZE_BLUE_X,
+            markeredgewidth=2,
+            label=r"$\left\langle\hat{\mathbf{c}}^{*},\Phi\right\rangle\notin\mathcal{Z}(F)$",
         ),
         Line2D(
             [0],
@@ -548,7 +552,7 @@ def _plot_degree_scaling_on_ax(ax: Axes, data) -> None:
             linestyle="None",
             markersize=MARKERSIZE_MAIZE_O,
             fillstyle="none",
-            label="Retracted polynomial max error",
+            label=r"$\mathcal{R}(\left\langle\hat{\mathbf{c}}^{*},\Phi\right\rangle)$",
         ),
     ]
     ax.legend(handles=legend_elements, loc="best", fontsize=LEGEND_FONTSIZE)

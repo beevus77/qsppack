@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""
+r"""
 Plot degree-scaling summary for matrix inversion and uniform singular value
 amplification (data produced by degree_scaling_data.py).
 
@@ -35,6 +35,11 @@ BASE_FONTSIZE = 20
 AXIS_LABEL_FONTSIZE = 22
 TITLE_FONTSIZE = 24
 LEGEND_FONTSIZE = 14
+FIGURE_7_DEGREES = np.asarray([32, 46, 64, 92, 128, 182, 256, 364, 512], dtype=float)
+FIGURE_7_EXPONENTS = np.arange(5.0, 9.0 + 0.5, 0.5)
+FIGURE_7_XLIM = (27.857618025475972, 588.1335577584822)
+FIGURE_7_YLIM = (0.0026150594886240014, 0.039514915470104515)
+FIGURE_7_YTICKS = np.asarray([0.005, 0.01, 0.02])
 
 
 def _mathtext_log_tick_label(x: float, pos=None) -> str:
@@ -175,6 +180,7 @@ def _plot_degree_scaling_on_ax(
     ax: Axes,
     data: pd.DataFrame,
     refinescale: bool = False,
+    target_subscript: str = "SV",
 ) -> None:
     """Draw the log-log degree vs max error summary on an existing Axes."""
     degrees = data["degree"].to_numpy(dtype=float)
@@ -253,8 +259,11 @@ def _plot_degree_scaling_on_ax(
     else:
         y_lo, y_hi = ax.get_ylim()
         _set_readable_log_y_ticks(ax, y_lo, y_hi)
-    ax.set_xlabel("Polynomial degree", fontsize=AXIS_LABEL_FONTSIZE)
-    ax.set_ylabel("Maximum error vs target", fontsize=AXIS_LABEL_FONTSIZE)
+    ax.set_xlabel(r"$d$", fontsize=AXIS_LABEL_FONTSIZE)
+    ax.set_ylabel(
+        rf"$\left\Vert P-g_{{\mathrm{{{target_subscript}}}}}\right\Vert_Y$",
+        fontsize=AXIS_LABEL_FONTSIZE,
+    )
     ax.xaxis.set_major_locator(FixedLocator(degrees_clamped))
     ax.xaxis.set_minor_locator(NullLocator())
     ax.set_xticks(degrees_clamped)
@@ -265,22 +274,22 @@ def _plot_degree_scaling_on_ax(
         Line2D(
             [0],
             [0],
-            marker="x",
-            color=BLUE,
-            linestyle="None",
-            markersize=MARKERSIZE_BLUE_X,
-            markeredgewidth=2,
-            label="Polynomial max error\n(constraints violated)",
-        ),
-        Line2D(
-            [0],
-            [0],
             marker="o",
             color=BLUE,
             linestyle="None",
             markersize=MARKERSIZE_BLUE_O,
             fillstyle="none",
-            label="Polynomial max error\n(constraints satisfied)",
+            label=r"$\left\langle\hat{\mathbf{c}}^{*},\Phi\right\rangle\in\mathcal{Z}(F)$",
+        ),
+        Line2D(
+            [0],
+            [0],
+            marker="x",
+            color=BLUE,
+            linestyle="None",
+            markersize=MARKERSIZE_BLUE_X,
+            markeredgewidth=2,
+            label=r"$\left\langle\hat{\mathbf{c}}^{*},\Phi\right\rangle\notin\mathcal{Z}(F)$",
         ),
         Line2D(
             [0],
@@ -290,7 +299,7 @@ def _plot_degree_scaling_on_ax(
             linestyle="None",
             markersize=MARKERSIZE_MAIZE_O,
             fillstyle="none",
-            label="Retracted polynomial max error",
+            label=r"$\mathcal{R}(\left\langle\hat{\mathbf{c}}^{*},\Phi\right\rangle)$",
         ),
     ]
     ax.legend(handles=legend_elements, loc="best", fontsize=LEGEND_FONTSIZE)
@@ -402,11 +411,15 @@ def plot_summary_and_pointwise_errors(
         raise ValueError(f"No CSV row found for degree {errordegree}.")
     row = matches.iloc[0]
 
+    plt.rcParams["text.usetex"] = True
     plt.rcParams["font.family"] = "serif"
     plt.rcParams["font.size"] = BASE_FONTSIZE
 
     fig, (ax0, ax1) = plt.subplots(1, 2, figsize=(14, 6))
-    _plot_degree_scaling_on_ax(ax0, data, refinescale=refinescale)
+    target_subscript = "MI" if problem_type == "mat_inv" else "SV"
+    _plot_degree_scaling_on_ax(
+        ax0, data, refinescale=refinescale, target_subscript=target_subscript
+    )
     ax0.set_title("Max error vs degree", fontsize=TITLE_FONTSIZE)
     plot_pointwise_retraction_and_scaled_poly_errors_on_ax(
         ax1, row, target_fn, x_lo, x_hi
@@ -423,6 +436,7 @@ def plot_summary(
     leave_out_last: bool = False,
     max_exp: Optional[int] = None,
     refinescale: bool = False,
+    match_fig7_axes: bool = False,
 ) -> None:
     """Plot degree (log) vs max error (log) for fit and QSP.
 
@@ -433,11 +447,24 @@ def plot_summary(
     """
     data = _load_degree_scaling_dataframe(csv_path, leave_out_last, max_exp)
 
+    plt.rcParams["text.usetex"] = True
     plt.rcParams["font.family"] = "serif"
     plt.rcParams["font.size"] = BASE_FONTSIZE
 
     fig, ax = plt.subplots(figsize=(8, 6))
-    _plot_degree_scaling_on_ax(ax, data, refinescale=refinescale)
+    target_subscript = "MI" if "mat_inv" in os.path.basename(csv_path) else "SV"
+    _plot_degree_scaling_on_ax(
+        ax, data, refinescale=refinescale, target_subscript=target_subscript
+    )
+    if match_fig7_axes:
+        ax.set_xlim(FIGURE_7_XLIM)
+        ax.set_ylim(FIGURE_7_YLIM)
+        ax.xaxis.set_major_locator(FixedLocator(FIGURE_7_DEGREES))
+        ax.xaxis.set_minor_locator(NullLocator())
+        ax.set_xticklabels([rf"$2^{{{value:g}}}$" for value in FIGURE_7_EXPONENTS])
+        ax.yaxis.set_major_locator(FixedLocator(FIGURE_7_YTICKS))
+        ax.yaxis.set_major_formatter(FuncFormatter(_mathtext_log_tick_label))
+        ax.yaxis.set_minor_locator(NullLocator())
 
     fig.tight_layout()
     fig.savefig(fig_path, bbox_inches="tight")
@@ -482,6 +509,11 @@ def main() -> None:
             "Explicit log-spaced y tick positions (1–9×10^k in view) with readable "
             "m×10^e labels and padded y-limits; default plot behavior is unchanged."
         ),
+    )
+    parser.add_argument(
+        "--match-fig7-axes",
+        action="store_true",
+        help="Use the checked-in Figure 7 x/y limits and tick locations exactly.",
     )
     parser.add_argument(
         "--ploterror",
@@ -567,6 +599,7 @@ def main() -> None:
             leave_out_last=args.leave_out_last,
             max_exp=args.max_exp,
             refinescale=args.refinescale,
+            match_fig7_axes=args.match_fig7_axes,
         )
 
 

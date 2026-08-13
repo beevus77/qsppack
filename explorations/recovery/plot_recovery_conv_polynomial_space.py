@@ -322,9 +322,21 @@ def plot_recovery_convergence_polyspace(csv_filename, deg=101, M=10_000_000, plo
         ax.loglog(npts_values, diff_coef_vs_gt, 'k--', alpha=0.7, linewidth=1)
         ax.loglog(npts_values, diff_recovered_vs_gt, 'k--', alpha=0.7, linewidth=1)
         legend_elements = [
-            Line2D([0], [0], marker="x", color=BLUE, linestyle="None", markersize=MARKERSIZE_POLY_BLUE_X, markeredgewidth=2, label="Polynomial Fit (constraints violated)"),
-            Line2D([0], [0], marker="o", color=BLUE, linestyle="None", markersize=MARKERSIZE_POLY_BLUE_O, fillstyle="none", label="Polynomial Fit (constraints satisfied)"),
-            Line2D([0], [0], marker="o", color=MAIZE, linestyle="None", markersize=MARKERSIZE_POLY_MAIZE_O, fillstyle="none", label="Retraction"),
+            Line2D(
+                [0], [0], marker="o", color=BLUE, linestyle="None",
+                markersize=MARKERSIZE_POLY_BLUE_O, fillstyle="none",
+                label=r"$\left\langle\hat{\mathbf{c}}^{*},\Phi\right\rangle\in\mathcal{Z}(F)$",
+            ),
+            Line2D(
+                [0], [0], marker="x", color=BLUE, linestyle="None",
+                markersize=MARKERSIZE_POLY_BLUE_X, markeredgewidth=2,
+                label=r"$\left\langle\hat{\mathbf{c}}^{*},\Phi\right\rangle\notin\mathcal{Z}(F)$",
+            ),
+            Line2D(
+                [0], [0], marker="o", color=MAIZE, linestyle="None",
+                markersize=MARKERSIZE_POLY_MAIZE_O, fillstyle="none",
+                label=r"$\mathcal{R}(\left\langle\hat{\mathbf{c}}^{*},\Phi\right\rangle)$",
+            ),
         ]
 
     # Grid and labels (no title)
@@ -333,7 +345,10 @@ def plot_recovery_convergence_polyspace(csv_filename, deg=101, M=10_000_000, plo
     if plot_type == 'infty':
         ax.set_ylabel('Function ∞-norm difference', fontsize=AXIS_LABEL_FONTSIZE)
     else:
-        ax.set_ylabel('Coefficient 2-norm difference', fontsize=AXIS_LABEL_FONTSIZE)
+        ax.set_ylabel(
+            r"$\left\Vert\hat{\mathbf{c}}-\hat{\mathbf{c}}^{*}_{\mathrm{gr}}\right\Vert_2$",
+            fontsize=AXIS_LABEL_FONTSIZE,
+        )
     ax.legend(handles=legend_elements, loc="best", fontsize=LEGEND_FONTSIZE)
 
     if ax is not None and subplot_title is not None:
@@ -509,5 +524,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
