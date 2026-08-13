@@ -201,6 +201,39 @@ conda run -n qsppack python degree_scaling_plot.py \
   --output figures/degree_scaling_uniform_sv_amp_npts19_clarabel_odd_Nweiss16.pdf
 ```
 
+### Exact-bound constrained approximation variant
+
+The new SDP method in `constrainapprox.py` supports odd polynomials only. The
+following separate experiment uses odd degrees immediately below the Figure 7
+logarithmic degree grid (31 through 511) and independently verifies the continuous
+bound before writing each row. The SDP certificate uses a `(degree + 1)` square
+matrix, so the high-degree rows are substantially more expensive; the CSV is
+flushed after each row and the run is resumable. Its CSV records the independently
+recomputed maximum error, total runtime, Gram-certificate diagnostics, and an
+additional bound check using one million points plus every real critical point.
+The plot uses Figure 7's exact x/y limits and tick locations. Existing Figure 7
+data and plots are not modified.
+
+```bash
+conda run -n qsppack python degree_scaling_constrainapprox.py \
+  --npts 500 \
+  --a 0.2 \
+  --epsilon 0.0 \
+  --solver SCS
+```
+
+Figure file:
+`figures/degree_scaling_uniform_sv_amp_constrainapprox.pdf`
+
+Data file:
+`data/degree_scaling_uniform_sv_amp_constrainapprox.csv`
+
+To recreate only the plot from the saved timing and error data:
+
+```bash
+conda run -n qsppack python degree_scaling_constrainapprox.py --plot-only
+```
+
 ## Fig 8
 
 Figure file:
