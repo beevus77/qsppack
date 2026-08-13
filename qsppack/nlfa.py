@@ -82,17 +82,31 @@ def weiss(b, N):
     >>> weiss(np.array([ 2.37136846e-01,  1.06711580e-01,  4.32585034e-01, -3.04180174e-01, -4.74273691e-04,  5.21701060e-01]), 64)
     array([ 0.47379318,  0.09424218,  0.11612456, -0.24713393, -0.06540336, -0.26132533])
     """
-    z = np.exp(1j*2*np.arange(N)*np.pi/N)  # get the Nth roots of unity
-    bz = np.array([np.dot(b, np.power(zj, np.arange(len(b)))) for zj in z])  # evaluate b(z) for all roots of unity
+    b = np.asarray(b)
+    if b.ndim != 1 or b.size == 0:
+        raise ValueError("b must be a nonempty one-dimensional array")
+    if isinstance(N, bool) or int(N) != N or int(N) < 2 or int(N) % 2:
+        raise ValueError("N must be an even integer greater than or equal to two")
+    N = int(N)
+    if len(b) > N:
+        raise ValueError("N must be at least the length of b")
+
+    # Evaluating a coefficient vector at every Nth root of unity is an
+    # unnormalized inverse FFT.  Expressing both evaluations this way avoids
+    # the quadratic roots-by-coefficients loops used by the original code.
+    b_padded = np.zeros(N, dtype=np.result_type(b, complex))
+    b_padded[:len(b)] = b
+    bz = N * ifft(b_padded)
     R = 0.5 * np.log1p(-np.abs(bz)**2 + 0j)
     R_hat_full = fft(R) / N
-    R_hat = np.append(R_hat_full[0], 2*R_hat_full[int(N/2):][::-1])  # discard positive frequencies, double negative frequencies
-    G_star = np.array([np.dot(R_hat, np.power(zj, np.arange(len(R_hat)))) for zj in z])
+    R_hat = np.append(R_hat_full[0], 2*R_hat_full[int(N/2):][::-1])
+    R_hat_padded = np.zeros(N, dtype=complex)
+    R_hat_padded[:len(R_hat)] = R_hat
+    G_star = N * ifft(R_hat_padded)
     a_star = ifft(np.exp(G_star))
-    # print("using current Weiss version")
-    return np.real(np.append(a_star[0],a_star[-len(b)+1:][::-1])) # This is for a test, the bottom line is the correct one
-    # print("using OG Weiss")
-    # return np.real_if_close(np.append(a_star[0],a_star[-len(b)+1:][::-1]))
+    if len(b) == 1:
+        return np.real(np.asarray([a_star[0]]))
+    return np.real(np.append(a_star[0], a_star[-len(b)+1:][::-1]))
 
 
 def inverse_nonlinear_FFT(a: np.ndarray, b: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:

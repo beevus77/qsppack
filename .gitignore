@@ -8,6 +8,8 @@
 
 .ipynb_checkpoints
 */.ipynb_checkpoints/*
+.DS_Store
+.mplconfig/
 
 # IPython
 profile_default/

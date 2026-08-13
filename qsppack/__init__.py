@@ -14,6 +14,8 @@ from .optimizers import lbfgs, coordinate_minimization, newton
 from .nlfa import (
     b_from_cheb, weiss, inverse_nonlinear_FFT, forward_nlft, forward_nonlinear_FFT
 )
+from .remez import RemezResult, remez
+from .retraction import RetractionResult, retract
 
 __all__ = [
     # solver
@@ -39,4 +41,10 @@ __all__ = [
     'inverse_nonlinear_FFT',
     'forward_nlft',
     'forward_nonlinear_FFT',
-] 
+    # constrained Remez approximation
+    'RemezResult',
+    'remez',
+    # nonlinear Fourier retraction
+    'RetractionResult',
+    'retract',
+]

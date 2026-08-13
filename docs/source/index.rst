@@ -39,7 +39,25 @@ Contents
    optimizers
    utils
    nlfa
+   remez
+   retraction
+
+Example Applications
+====================
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Example Applications:
+
    examples
 
-* :ref:`genindex`
+Polynomial Approximation Examples
+=================================
 
+.. toctree::
+   :maxdepth: 2
+   :caption: Polynomial Approximation Examples:
+
+   polynomial_approximation_examples
+
+* :ref:`genindex`
