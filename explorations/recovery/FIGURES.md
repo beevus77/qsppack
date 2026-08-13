@@ -132,6 +132,75 @@ python degree_scaling_plot.py \
   --output figures/degree_scaling_uniform_sv_amp_npts19_solver2.pdf
 ```
 
+### Corrected odd-parity Figure 7
+
+The original Figure 7 degree grid selects even degrees even though the uniform
+singular-value-amplification target is odd. This corrected, separately named run
+uses odd degrees near the same logarithmic ticks, with all other solver parameters
+unchanged. Errors are evaluated at the interval endpoints and every real critical
+point of the polynomial error. The CSV also retains the original 1000-point
+uniform-grid errors for comparison and records continuous critical-point bound
+checks for both the fitted and retracted polynomials.
+
+```bash
+conda run -n qsppack python degree_scaling_data_odd.py
+
+conda run -n qsppack python degree_scaling_plot.py \
+  --csv data/degree_scaling_uniform_sv_amp_npts19_solver2_odd.csv \
+  --output figures/degree_scaling_uniform_sv_amp_npts19_solver2_odd.pdf
+
+conda run -n qsppack python degree_scaling_plot.py \
+  --csv data/degree_scaling_uniform_sv_amp_npts19_solver2_odd.csv \
+  --output figures/degree_scaling_uniform_sv_amp_npts19_solver2_odd_fig7_axes.pdf \
+  --match-fig7-axes
+```
+
+Figure file:
+`figures/degree_scaling_uniform_sv_amp_npts19_solver2_odd.pdf`
+
+Exact-axis comparison file (high-degree corrected errors fall below the original
+Figure 7 y-range and are therefore clipped):
+`figures/degree_scaling_uniform_sv_amp_npts19_solver2_odd_fig7_axes.pdf`
+
+Data file:
+`data/degree_scaling_uniform_sv_amp_npts19_solver2_odd.csv`
+
+To reuse these fitted polynomials and repeat only the NLFT retraction with
+`N_weiss = 2^16`:
+
+```bash
+conda run -n qsppack python rerun_odd_retraction.py
+
+conda run -n qsppack python degree_scaling_plot.py \
+  --csv data/degree_scaling_uniform_sv_amp_npts19_solver2_odd_Nweiss16.csv \
+  --output figures/degree_scaling_uniform_sv_amp_npts19_solver2_odd_Nweiss16.pdf
+```
+
+Data file:
+`data/degree_scaling_uniform_sv_amp_npts19_solver2_odd_Nweiss16.csv`
+
+Figure file:
+`figures/degree_scaling_uniform_sv_amp_npts19_solver2_odd_Nweiss16.pdf`
+
+CLARABEL-fit variant, retracted directly with `N_weiss = 2^16`:
+
+For high degrees, the generator uses CLARABEL constraint generation: it solves
+an active subset, checks the result against every point of the original `2^19`
+grid, adds missed error/bound extrema, and repeats until the full-grid checks
+close. This avoids CLARABEL's factorization failure on the equivalent monolithic
+half-million-inequality formulation.
+
+```bash
+conda run -n qsppack python degree_scaling_data_odd.py \
+  --solver CLARABEL \
+  --N $((2**16)) \
+  --csv data/degree_scaling_uniform_sv_amp_npts19_clarabel_odd_Nweiss16.csv
+
+conda run -n qsppack python degree_scaling_plot.py \
+  --csv data/degree_scaling_uniform_sv_amp_npts19_clarabel_odd_Nweiss16.csv \
+  --output figures/degree_scaling_uniform_sv_amp_npts19_clarabel_odd_Nweiss16.pdf
+```
+
 ## Fig 8
 
 Figure file:

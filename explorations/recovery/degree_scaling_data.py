@@ -77,6 +77,8 @@ def run_single_degree(
     n_xplot: int = 1000,
     cvx_solver: Optional[str] = None,
     cvx_verbose: bool = False,
+    coef_full_override: Optional[np.ndarray] = None,
+    time_fit_override: Optional[float] = None,
 ) -> Dict[str, object]:
     """
     Run the fitting + QSP retraction for a single degree.
@@ -105,9 +107,15 @@ def run_single_degree(
     if cvx_verbose:
         opts_fit["verbose"] = True
 
-    t0 = time.time()
-    coef_full = cvx_poly_coef(target, deg, opts_fit)
-    time_fit = time.time() - t0
+    if coef_full_override is None:
+        t0 = time.time()
+        coef_full = cvx_poly_coef(target, deg, opts_fit)
+        time_fit = time.time() - t0
+    else:
+        coef_full = np.asarray(coef_full_override, dtype=float)
+        if coef_full.shape != (deg + 1,):
+            raise ValueError("coef_full_override must have shape (deg + 1,)")
+        time_fit = float(time_fit_override or 0.0)
     coef = coef_full[parity::2]
 
     opts_qsp = dict(opts_fit)
@@ -124,14 +132,16 @@ def run_single_degree(
     phi_proc, out = solve(coef, parity, opts_qsp)
     time_qsp = time.time() - t1
     out["typePhi"] = "full"
-    # NLFT returns phases for the real (Pre) QSP response; match get_entry to that channel.
-    out["targetPre"] = True
+    # NLFT's real channel carries even polynomials and its imaginary-channel
+    # convention carries odd polynomials.
+    out["targetPre"] = parity == 0
 
     xlist = np.linspace(x_lo, x_hi, n_xplot)
     func = lambda x: chebyshev_to_func(x, coef, parity, True)
     targ_value = target(xlist)
     func_value = func(xlist)
-    qsp_value = get_entry(xlist, phi_proc, out)
+    # get_entry adjusts endpoint phases in place for the imaginary channel.
+    qsp_value = get_entry(xlist, np.array(phi_proc, copy=True), out)
 
     abs_err_poly = np.abs(func_value - targ_value)
     abs_err_qsp = np.abs(qsp_value - targ_value)
