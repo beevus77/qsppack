@@ -1,5 +1,10 @@
 # Recovery Figure Registry
 
+> This is a migration-stage registry, not a supported package interface. See
+> `../CLEANUP_MANIFEST.md` for canonical-input decisions, archive candidates,
+> and removal gates. Figure 9 currently references one missing CSV; Figure 7's
+> corrected canonical dataset must be confirmed before older variants are removed.
+
 Run these commands from `explorations/recovery` with the `qsppack` Python environment active.
 The plotting commands below reproduce the figure filenames and command-line settings used in the current draft.
 
