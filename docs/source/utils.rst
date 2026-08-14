@@ -12,28 +12,48 @@ The utils module provides various utility functions for QSP operations.
 .. autofunction:: F
 .. autofunction:: F_Jacobian
 
-These utility functions provide essential operations for QSP calculations, including unitary matrix generation, phase factor conversion, and polynomial coefficient manipulation.
+These utility functions provide operations for QSP evaluation, phase-factor
+conversion, and polynomial coefficient manipulation.
 
 Example usage:
 
 .. code-block:: python
 
     import numpy as np
-    from qsppack.utils import get_unitary, reduced_to_full, chebyshev_to_func, F, F_Jacobian
+    from qsppack.utils import (
+        F,
+        F_Jacobian,
+        chebyshev_to_func,
+        get_unitary,
+        reduced_to_full,
+    )
 
-    # Generate unitary matrix for given phase factors
+    # Evaluate the real part of the (0, 0) QSP unitary entry.
     phase_factors = np.array([0.1, 0.2, 0.3])
-    unitary = get_unitary(phase_factors)
+    value = get_unitary(phase_factors, x=0.5)
 
-    # Convert reduced phase factors to full set
-    full_phases = reduced_to_full(phase_factors)
+    # Convert reduced symmetric phase factors to a full even sequence.
+    reduced_phases = np.array([0.1, 0.2])
+    full_phases = reduced_to_full(
+        reduced_phases,
+        parity=0,
+        targetPre=True,
+    )
 
-    # Convert Chebyshev coefficients to function values
-    cheb_coefs = np.array([1, 0, 1])
+    # Evaluate 0.5*T_1(x) from its odd partial coefficient vector.
     x = np.linspace(-1, 1, 100)
-    func_values = chebyshev_to_func(cheb_coefs, x)
+    func_values = chebyshev_to_func(
+        x,
+        coef=np.array([0.5]),
+        parity=1,
+        partialcoef=True,
+    )
 
-    # Evaluate F function and its Jacobian
-    x = 0.5
-    f_value = F(x)
-    jacobian = F_Jacobian(x) 
+    # Evaluate the reduced phase-to-coefficient map and its Jacobian.
+    options = {'useReal': True}
+    coefficients = F(reduced_phases, parity=0, opts=options)
+    coefficients, jacobian = F_Jacobian(
+        reduced_phases,
+        parity=0,
+        opts=options,
+    )

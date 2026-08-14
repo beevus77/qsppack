@@ -7,7 +7,10 @@ The solver module provides the main functionality for solving Quantum Signal Pro
 
 .. autofunction:: solve
 
-The solve function is the main entry point for QSP optimization. It takes a target polynomial and returns the optimized phase factors.
+The :func:`solve` function is the main entry point for QSP phase synthesis. It
+takes the nonzero-parity Chebyshev coefficients, the polynomial parity, and an
+options dictionary. It returns the phase factors together with convergence and
+timing information.
 
 Example usage:
 
@@ -16,8 +19,15 @@ Example usage:
     import numpy as np
     from qsppack.solver import solve
 
-    # Define a target polynomial (e.g., P(x) = x)
-    target_poly = np.array([0, 1])
+    # P(x) = 0.5*x is odd, so its partial coefficient vector is [0.5].
+    coefficients = np.array([0.5])
+    parity = 1
+    options = {
+        'method': 'Newton',
+        'criteria': 1e-12,
+        'targetPre': True,
+        'typePhi': 'full',
+        'print': False,
+    }
 
-    # Solve for phase factors
-    result = solve(target_poly, method='lbfgs') 
+    phases, info = solve(coefficients, parity, options)
