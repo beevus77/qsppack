@@ -155,6 +155,19 @@ def reduced_to_full(phi_cm, parity, targetPre):
     2. Mirroring them to the left half
     3. Adjusting the last factor if targetPre is True
     """
+    phi_cm = np.asarray(phi_cm)
+    if phi_cm.ndim != 1 or phi_cm.size == 0:
+        raise ValueError("phi_cm must be a nonempty one-dimensional array")
+    if np.iscomplexobj(phi_cm) and np.any(np.imag(phi_cm) != 0):
+        raise ValueError("phi_cm must contain real phase factors")
+    phi_cm = np.asarray(np.real(phi_cm), dtype=float)
+    if not np.all(np.isfinite(phi_cm)):
+        raise ValueError("phi_cm must contain only finite values")
+    if parity not in (0, 1) or isinstance(parity, (bool, np.bool_)):
+        raise ValueError("parity must be zero (even) or one (odd)")
+    if not isinstance(targetPre, (bool, np.bool_)):
+        raise TypeError("targetPre must be a boolean")
+
     phi_right = phi_cm.copy()
     if targetPre:
         phi_right[-1] += np.pi / 4

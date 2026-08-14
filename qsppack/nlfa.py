@@ -1,9 +1,6 @@
-# import necessary dependencies
 import numpy as np
 from scipy.signal import fftconvolve
 from scipy.fft import fft, ifft
-import sympy as sp
-from sympy import Poly
 
 
 def b_from_cheb(c, parity):
@@ -42,17 +39,24 @@ def b_from_cheb(c, parity):
     >>> b_from_cheb([1, 2, 3], 1)
     array([1.5, 1. , 0.5, 0.5, 1. , 1.5])
     """
+    c = np.asarray(c)
+    if c.ndim != 1 or c.size == 0:
+        raise ValueError("c must be a nonempty one-dimensional array")
+    if parity not in (0, 1) or isinstance(parity, (bool, np.bool_)):
+        raise ValueError("parity must be zero (even) or one (odd)")
+
     lenc = len(c)
+    dtype = np.result_type(c.dtype, float)
     if parity == 0:  # even
-        c_new = np.zeros(2*lenc-1)
+        c_new = np.zeros(2*lenc-1, dtype=dtype)
         c_new[:lenc] = c[::-1] / 2
         c_new[lenc-1:] += c / 2
         return c_new
-    else:  # odd
-        c_new = np.zeros(2*lenc)
-        c_new[:lenc] = c[::-1] / 2
-        c_new[lenc:] = c / 2
-        return c_new
+
+    c_new = np.zeros(2*lenc, dtype=dtype)
+    c_new[:lenc] = c[::-1] / 2
+    c_new[lenc:] = c / 2
+    return c_new
     
 
 def weiss(b, N):
@@ -79,8 +83,9 @@ def weiss(b, N):
     --------
     >>> weiss(np.array([0.38157934, 0.05342111, 0.45789521]), 8)
     array([ 0.76099391, -0.08783997, -0.23742773])
-    >>> weiss(np.array([ 2.37136846e-01,  1.06711580e-01,  4.32585034e-01, -3.04180174e-01, -4.74273691e-04,  5.21701060e-01]), 64)
-    array([ 0.47379318,  0.09424218,  0.11612456, -0.24713393, -0.06540336, -0.26132533])
+    >>> expected = [0.47379318, 0.09424218, 0.11612456, -0.24713393, -0.06540336, -0.26132533]
+    >>> np.allclose(weiss(np.array([0.237136846, 0.10671158, 0.432585034, -0.304180174, -0.000474273691, 0.52170106]), 64), expected)
+    True
     """
     b = np.asarray(b)
     if b.ndim != 1 or b.size == 0:
@@ -127,9 +132,17 @@ def inverse_nonlinear_FFT(a: np.ndarray, b: np.ndarray) -> tuple[np.ndarray, np.
     
     Examples
     --------
-    >>> inverse_nonlinear_FFT(np.array([0.1, -0.5, -0.6]), np.array([0.2, -0.5, 0.3]))[0]
-    array([2., 1., 3.])
+    >>> gammas = inverse_nonlinear_FFT(np.array([0.1, -0.5, -0.6]), np.array([0.2, -0.5, 0.3]))[0]
+    >>> np.allclose(gammas, [2, 1, 3])
+    True
     """
+    a = np.asarray(a)
+    b = np.asarray(b)
+    if a.ndim != 1 or b.ndim != 1 or a.size == 0 or b.size == 0:
+        raise ValueError("a and b must be nonempty one-dimensional arrays")
+    if len(a) != len(b):
+        raise ValueError("a and b must have the same length")
+
     n = len(a)
 
     # Step 1: base case
@@ -163,8 +176,7 @@ def forward_nlft(gammas):
     """
     Computes the forward nonlinear Fourier transform (NLFT) for a given set of gammas.
 
-    This function constructs a matrix product based on the input gammas and extracts
-    the polynomial coefficients from the resulting matrix.
+    This is the coefficient-only interface to :func:`forward_nonlinear_FFT`.
 
     Parameters
     ----------
@@ -178,14 +190,11 @@ def forward_nlft(gammas):
 
     Examples
     --------
-    >>> forward_nlft(np.array([0.1, -0.5, 0.3]))
-    array([...])  # Example output, replace with actual expected result
+    >>> np.allclose(forward_nlft(np.array([0.1, -0.5, 0.3])), [0.08524542, -0.41344029, 0.25573626])
+    True
     """
-    z = sp.symbols('z')
-    res = np.eye(2)
-    for k, gamma in enumerate(gammas):
-        res = res @ np.array([[1, gamma*(z**k)], [-np.conj(gamma)*(z**(-k)), 1]]) / np.sqrt(1 + np.abs(gamma)**2)
-    return np.array(Poly(res[0,1]).all_coeffs()[::-1], dtype=np.float64)
+    _, b = forward_nonlinear_FFT(gammas)
+    return np.real_if_close(b, tol=1000)
 
 
 def forward_nonlinear_FFT(gammas: np.ndarray, m=0, debug=False) -> tuple[np.ndarray, np.ndarray]:
@@ -206,6 +215,13 @@ def forward_nonlinear_FFT(gammas: np.ndarray, m=0, debug=False) -> tuple[np.ndar
         A tuple (a_star, b) of length n+1 and n respectively, where a_star
         is the conjugate polynomial coefficients of a^*(z), and b is b(z).
     """
+    gammas = np.asarray(gammas)
+    if gammas.ndim != 1 or gammas.size == 0:
+        raise ValueError("gammas must be a nonempty one-dimensional array")
+    if isinstance(m, (bool, np.bool_)) or int(m) != m or int(m) < 0:
+        raise ValueError("m must be a nonnegative integer")
+    m = int(m)
+
     n = len(gammas)
 
     # base case
