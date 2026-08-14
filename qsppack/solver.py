@@ -10,7 +10,7 @@ from .utils import chebyshev_to_func, reduced_to_full
 from .objective import obj_sym, grad_sym, grad_sym_real
 from .optimizers import lbfgs, coordinate_minimization, newton, nlft
 
-def solve(coef, parity, opts):
+def solve(coef, parity, opts=None):
     """Given coefficients of a polynomial P, yield corresponding phase factors.
 
     The reference chose the first half of the phase factors as the 
@@ -62,14 +62,56 @@ def solve(coef, parity, opts):
             Whether Pre was target function
         - typePhi : str
             Type of phase factors returned
+        - method : str
+            Optimization method used
+        - converged : bool
+            Whether the method satisfied its numerical stopping criterion
     """
+    if opts is None:
+        opts = {}
+    elif not isinstance(opts, dict):
+        raise TypeError("opts must be a dictionary or None")
+    else:
+        # Low-level solvers add method-specific defaults, so isolate those
+        # updates from the caller's dictionary.
+        opts = opts.copy()
+
+    coef = np.asarray(coef)
+    if coef.ndim != 1 or coef.size == 0:
+        raise ValueError("coef must be a nonempty one-dimensional array")
+    if np.iscomplexobj(coef) and np.any(np.imag(coef) != 0):
+        raise ValueError("coef must contain real Chebyshev coefficients")
+    coef = np.asarray(np.real(coef), dtype=float)
+    if not np.all(np.isfinite(coef)):
+        raise ValueError("coef must contain only finite values")
+    if parity not in (0, 1) or isinstance(parity, (bool, np.bool_)):
+        raise ValueError("parity must be zero (even) or one (odd)")
+
     # Setup options for L-BFGS solver
-    opts.setdefault('maxiter', 5e4)
+    opts.setdefault('maxiter', 50000)
     opts.setdefault('criteria', 1e-12)
     opts.setdefault('useReal', True)
     opts.setdefault('targetPre', True)
     opts.setdefault('method', 'FPI')
     opts.setdefault('typePhi', 'full')
+
+    if (
+        isinstance(opts['maxiter'], (bool, np.bool_))
+        or int(opts['maxiter']) != opts['maxiter']
+        or int(opts['maxiter']) < 1
+    ):
+        raise ValueError("maxiter must be a positive integer")
+    opts['maxiter'] = int(opts['maxiter'])
+    if not np.isfinite(opts['criteria']) or opts['criteria'] <= 0:
+        raise ValueError("criteria must be positive and finite")
+    for name in ('useReal', 'targetPre'):
+        if not isinstance(opts[name], (bool, np.bool_)):
+            raise TypeError(f"{name} must be a boolean")
+    methods = ('LBFGS', 'FPI', 'Newton', 'NLFT')
+    if opts['method'] not in methods:
+        raise ValueError(f"method must be one of {methods}")
+    if opts['typePhi'] not in ('full', 'reduced'):
+        raise ValueError("typePhi must be 'full' or 'reduced'")
 
     if opts['method'] == 'LBFGS':
         # Initial preparation
@@ -103,23 +145,22 @@ def solve(coef, parity, opts):
     elif opts['method'] == 'NLFT':
         phi, err, iter, runtime = nlft(coef, parity, opts)
 
-    else:
-        print("Assigned method doesn't exist. Please choose method from 'LBFGS', 'FPI', 'Newton' or 'NLFT'.")
-        return None, None
-
     # Output information
+    threshold = opts['criteria'] ** 2 if opts['method'] == 'LBFGS' else opts['criteria']
     out = {
         'iter': iter,
         'time': runtime,
         'value': err,
         'parity': parity,
-        'targetPre': opts['targetPre']
+        'targetPre': opts['targetPre'],
+        'method': opts['method'],
+        'converged': bool(err < threshold),
     }
 
     if opts['typePhi'] == 'full':
         phi_proc = reduced_to_full(phi, parity, opts['targetPre'])
         out['typePhi'] = 'full'
-    else:
+    elif opts['typePhi'] == 'reduced':
         phi_proc = phi
         out['typePhi'] = 'reduced'
 

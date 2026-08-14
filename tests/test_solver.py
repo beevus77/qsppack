@@ -7,17 +7,19 @@ from qsppack.utils import cvx_poly_coef, get_entry
 
 def test_solve_basic():
     """Test basic functionality of solve function."""
-    # Test case: simple polynomial P(x) = x
-    coef = np.array([1.0])
+    # Keep the target in FPI's contraction regime: P(x) = 0.5*x.
+    coef = np.array([0.5])
     parity = 1  # odd polynomial
     opts = {
         'criteria': 1e-12,
         'useReal': True,
         'targetPre': True,
         'method': 'FPI',
-        'typePhi': 'full'
+        'typePhi': 'full',
+        'print': False,
     }
     
+    original_options = opts.copy()
     phi, out = solve(coef, parity, opts)
     
     # Basic assertions
@@ -31,6 +33,12 @@ def test_solve_basic():
     assert out['parity'] == parity
     assert out['targetPre'] == opts['targetPre']
     assert out['typePhi'] == opts['typePhi']
+    assert out['method'] == opts['method']
+    assert out['converged']
+    assert opts == original_options
+
+    grid = np.linspace(-1.0, 1.0, 21)
+    np.testing.assert_allclose(get_entry(grid, phi, out), 0.5 * grid, atol=1e-10)
 
 def test_solve_invalid_method():
     """Test solve function with invalid method."""
@@ -40,20 +48,19 @@ def test_solve_invalid_method():
         'method': 'INVALID_METHOD'
     }
     
-    phi, out = solve(coef, parity, opts)
-    assert phi is None
-    assert out is None
+    with pytest.raises(ValueError, match="method must be one of"):
+        solve(coef, parity, opts)
 
 def test_solve_different_parity():
     """Test solve function with even parity polynomial."""
-    # Test case: simple polynomial P(x) = x^2
-    coef = np.array([1.0])
+    # x^2 = (T_0(x) + T_2(x)) / 2.
+    coef = np.array([0.5, 0.5])
     parity = 0  # even polynomial
     opts = {
         'criteria': 1e-12,
         'useReal': True,
         'targetPre': True,
-        'method': 'FPI',
+        'method': 'Newton',
         'typePhi': 'full'
     }
     
@@ -61,7 +68,61 @@ def test_solve_different_parity():
     
     assert phi is not None
     assert out is not None
-    assert out['parity'] == parity 
+    assert out['parity'] == parity
+    assert out['converged']
+
+    grid = np.linspace(-1.0, 1.0, 21)
+    np.testing.assert_allclose(get_entry(grid, phi, out), grid**2, atol=1e-10)
+
+
+@pytest.mark.parametrize(
+    ("coef", "parity", "options", "exception", "message"),
+    [
+        ([], 1, {}, ValueError, "nonempty one-dimensional"),
+        ([[0.1]], 1, {}, ValueError, "nonempty one-dimensional"),
+        ([np.nan], 1, {}, ValueError, "finite"),
+        ([0.1 + 0.2j], 1, {}, ValueError, "real"),
+        ([0.1], 2, {}, ValueError, "parity"),
+        ([0.1], 1, {"maxiter": 0}, ValueError, "positive integer"),
+        ([0.1], 1, {"criteria": 0}, ValueError, "positive and finite"),
+        ([0.1], 1, {"targetPre": 1}, TypeError, "boolean"),
+        ([0.1], 1, {"typePhi": "half"}, ValueError, "typePhi"),
+    ],
+)
+def test_solve_validation(coef, parity, options, exception, message):
+    with pytest.raises(exception, match=message):
+        solve(coef, parity, options)
+
+
+def test_solve_rejects_non_dictionary_options():
+    with pytest.raises(TypeError, match="dictionary"):
+        solve([0.1], 1, [])
+
+
+def test_solve_accepts_omitted_options():
+    phases, out = solve([0.0], 1)
+
+    assert np.all(np.isfinite(phases))
+    assert out["method"] == "FPI"
+    assert out["converged"]
+
+
+def test_solve_reports_iteration_limit_without_claiming_convergence():
+    _, out = solve(
+        [0.5],
+        1,
+        {
+            "method": "FPI",
+            "maxiter": 1,
+            "criteria": 1e-15,
+            "print": False,
+            "typePhi": "reduced",
+        },
+    )
+
+    assert out["iter"] == 1
+    assert not out["converged"]
+    assert out["value"] > 1e-15
 
 
 @pytest.mark.parametrize('method', ['FPI', 'Newton', 'LBFGS', 'NLFT'])
@@ -90,6 +151,7 @@ def test_solve_hamiltonian_simulation_example(method, use_real, phase_type):
     actual = get_entry(grid, phases, out)
 
     assert np.all(np.isfinite(phases))
+    assert out['converged']
     assert np.linalg.norm(actual - expected, np.inf) < 1e-8
 
 
@@ -126,6 +188,7 @@ def test_solve_phase_conventions(method, parity, target_pre, phase_type):
     if method == 'NLFT':
         assert out['iter'] == 1
         assert out['value'] < 1e-12
+    assert out['converged']
     assert np.linalg.norm(actual - expected, np.inf) < 1e-8
 
 def test_solve_gibbs():
@@ -168,4 +231,5 @@ def test_solve_gibbs():
         actual = get_entry(grid, phases, out)
 
         assert np.all(np.isfinite(phases)), method
+        assert out['converged'], method
         assert np.linalg.norm(actual - expected, np.inf) < 1e-8, method
