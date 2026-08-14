@@ -1,4 +1,5 @@
 import matplotlib
+import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 
@@ -175,3 +176,121 @@ def test_plot_helper_returns_two_axes():
 
     assert len(axes) == 2
     figure.canvas.draw()
+    plt.close(figure)
+
+
+def test_result_variants_are_evaluated_explicitly():
+    result = remez(
+        threshold_target,
+        degree=8,
+        fit_intervals=[(0.0, 0.45), (0.55, 1.0)],
+        target_scale=1.0 - 1e-6,
+    )
+    x = np.linspace(0.0, 1.0, 31)
+
+    np.testing.assert_allclose(
+        result.evaluate(x, "raw"),
+        np.polynomial.chebyshev.chebval(x, result.raw_coefficients),
+    )
+    np.testing.assert_allclose(
+        result.evaluate(x, "scaled"),
+        np.polynomial.chebyshev.chebval(x, result.scaled_coefficients),
+    )
+    np.testing.assert_allclose(
+        result.evaluate(x),
+        np.polynomial.chebyshev.chebval(x, result.coefficients),
+    )
+    with pytest.raises(ValueError, match="variant"):
+        result.evaluate(x, "unknown")
+
+
+def test_custom_weight_derivatives_bounds_and_initial_extremals():
+    fitter = ConstrainedRemezFitter(
+        target=lambda x: 0.25 * x,
+        fit_intervals=[(0.0, 1.0)],
+        lower_bound=-0.8,
+        upper_bound=0.8,
+        weight=lambda x: 1.0 + x,
+        target_derivative=lambda x: np.full_like(x, 0.25),
+        weight_derivative=lambda x: np.ones_like(x),
+    )
+
+    result = fitter.fit(
+        degree=1,
+        strict=True,
+        initial_extremals=np.array([0.0, 1.0]),
+    )
+
+    np.testing.assert_allclose(result.coefficients, [0.0, 0.25], atol=1e-12)
+    assert result.metrics.max_constraint_violation == 0.0
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "message"),
+    [
+        ({"relative_tolerance": 0}, "relative_tolerance"),
+        ({"max_iterations": 0}, "max_iterations"),
+        ({"fit_grid_size": True}, "fit_grid_size"),
+        ({"exchange_tolerance": 0}, "exchange_tolerance"),
+    ],
+)
+def test_remez_options_validation(kwargs, message):
+    with pytest.raises(ValueError, match=message):
+        RemezOptions(**kwargs).validate()
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "message"),
+    [
+        ({"fit_intervals": []}, "nonempty"),
+        ({"fit_intervals": [(0.5, 0.0)]}, "ordered"),
+        ({"fit_intervals": [(-0.1, 0.5)]}, r"\[0, 1\]"),
+        ({"fit_intervals": [(0.0, 1.0)], "target_scale": 0}, "target_scale"),
+        (
+            {"fit_intervals": [(0.0, 1.0)], "lower_bound": 1, "upper_bound": -1},
+            "lower_bound",
+        ),
+    ],
+)
+def test_remez_input_validation(kwargs, message):
+    with pytest.raises(ValueError, match=message):
+        ConstrainedRemezFitter(target=lambda x: x, **kwargs)
+
+
+def test_remez_initial_extremal_and_degree_validation():
+    fitter = ConstrainedRemezFitter(lambda x: x, [(0.0, 1.0)])
+
+    with pytest.raises(ValueError, match="degree"):
+        fitter.fit(0)
+    with pytest.raises(ValueError, match="initial_extremals"):
+        fitter.fit(1, initial_extremals=[1.1])
+
+
+def test_plot_helper_supports_custom_axes_and_log_scale():
+    result = remez(
+        lambda x: 0.5 * x,
+        degree=1,
+        fit_intervals=[(0.0, 1.0)],
+        target_derivative=lambda x: np.full_like(x, 0.5),
+        strict=True,
+    )
+    figure, axes = plt.subplots(1, 2)
+
+    returned_figure, returned_axes = plot_remez_result(
+        result,
+        lambda x: 0.5 * x + 0.01,
+        axes=axes,
+        error_scale="log",
+        points=101,
+    )
+
+    assert returned_figure is figure
+    assert returned_axes == tuple(axes)
+    assert axes[1].get_yscale() == "log"
+    with pytest.raises(ValueError, match="error_scale"):
+        plot_remez_result(result, lambda x: x, error_scale="invalid")
+    with pytest.raises(ValueError, match="points"):
+        plot_remez_result(result, lambda x: x, points=1)
+    with pytest.raises(ValueError, match="exactly two"):
+        plot_remez_result(result, lambda x: x, axes=[axes[0]])
+    plt.close(figure)

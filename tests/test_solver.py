@@ -216,6 +216,9 @@ def test_solve_gibbs():
     coef = coef_full[parity::2]
     grid = np.linspace(-1.0, 1.0, 301)
     expected = np.polynomial.chebyshev.chebval(grid, coef_full)
+    fit_grid = np.linspace(delta, 1.0, 301)
+    fit_approximation = np.polynomial.chebyshev.chebval(fit_grid, coef_full)
+    assert np.linalg.norm(fit_approximation - targ(fit_grid), np.inf) < 1e-4
 
     for method in ('FPI', 'Newton', 'LBFGS', 'NLFT'):
         phases, out = solve(coef, parity, {

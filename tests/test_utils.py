@@ -3,7 +3,13 @@
 import numpy as np
 import pytest
 
-from qsppack import chebyshev_to_func, get_entry, get_unitary, reduced_to_full
+from qsppack import (
+    chebyshev_to_func,
+    cvx_poly_coef,
+    get_entry,
+    get_unitary,
+    reduced_to_full,
+)
 from qsppack.utils import (
     F,
     F_Jacobian,
@@ -83,6 +89,52 @@ def test_chebyshev_to_func_full_coefficients(parity):
 
     expected = np.polynomial.chebyshev.chebval(x, parity_coefficients)
     np.testing.assert_allclose(result, expected, atol=1e-15)
+
+
+@pytest.mark.parametrize("method", ["SLSQP", "cvxpy", "linprog"])
+def test_cvx_poly_coef_backends_approximate_linear_target(method, capsys):
+    options = {
+        "method": method,
+        "intervals": [0.0, 1.0],
+        "npts": 40,
+        "epsil": 0.01,
+        "fscale": 1.0,
+        "isplot": False,
+        "objnorm": np.inf,
+        "verbose": False,
+    }
+    original = options.copy()
+
+    coefficients = cvx_poly_coef(lambda x: 0.5 * x, 3, options)
+
+    grid = np.linspace(-1.0, 1.0, 201)
+    approximation = np.polynomial.chebyshev.chebval(grid, coefficients)
+    np.testing.assert_allclose(approximation, 0.5 * grid, atol=1e-5)
+    assert np.max(np.abs(approximation)) <= 0.99 + 1e-10
+    assert options == original
+    assert capsys.readouterr().out == ""
+
+
+@pytest.mark.parametrize(
+    ("degree", "options", "exception", "message"),
+    [
+        (True, {}, ValueError, "nonnegative integer"),
+        (2, {"intervals": [0.0, 0.5, 0.75]}, ValueError, "endpoint pairs"),
+        (2, {"intervals": [0.5, 0.0]}, ValueError, "ordered"),
+        (2, {"intervals": [-0.1, 0.5]}, ValueError, r"\[0, 1\]"),
+        (2, {"npts": 1}, ValueError, "at least two"),
+        (2, {"method": "unknown"}, ValueError, "not supported"),
+        (2, {"method": "linprog", "objnorm": 2}, ValueError, "np.inf"),
+    ],
+)
+def test_cvx_poly_coef_validation(degree, options, exception, message):
+    with pytest.raises(exception, match=message):
+        cvx_poly_coef(lambda x: x, degree, options)
+
+
+def test_cvx_poly_coef_validates_target_output():
+    with pytest.raises(ValueError, match="broadcast"):
+        cvx_poly_coef(lambda x: [1.0, 2.0], 2, {"npts": 20})
 
 
 @pytest.mark.parametrize("parity", [0, 1])

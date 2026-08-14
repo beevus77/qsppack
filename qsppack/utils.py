@@ -227,13 +227,14 @@ def chebyshev_to_func(x, coef, parity, partialcoef):
         return float(ret)
     return ret
 
-def cvx_poly_coef(func, deg, opts):
+def cvx_poly_coef(func, deg, opts=None):
     """Compute coefficients for a polynomial approximation using convex optimization.
 
     This function computes the coefficients of a polynomial that best approximates
     a target function over specified intervals in a least-squares sense. The function
     is called with a target function, the degree of the polynomial, and an options
-    dictionary.
+    dictionary. The returned array contains the full Chebyshev coefficient
+    sequence, including zeros in the opposite-parity positions.
 
     Parameters
     ----------
@@ -241,7 +242,7 @@ def cvx_poly_coef(func, deg, opts):
         The target function to approximate.
     deg : int
         The degree of the polynomial.
-    opts : dict
+    opts : dict, optional
         Options dictionary with the following fields:
         
         - intervals : list
@@ -256,13 +257,33 @@ def cvx_poly_coef(func, deg, opts):
             Scale factor for function values.
         - isplot : bool
             Whether to plot results.
+        - method : {'SLSQP', 'cvxpy', 'linprog'}
+            Numerical backend. ``linprog`` supports only the infinity norm.
+        - solver : str
+            CVXPY solver name (default ``'CLARABEL'``).
+        - verbose : bool
+            Whether to print diagnostics and backend progress.
+        - maxiter : int
+            Maximum number of SLSQP iterations.
 
     Returns
     -------
     ndarray
         Coefficients of the best-fit polynomial in the Chebyshev basis.
     """
-    # Set default options if not provided
+    if not callable(func):
+        raise TypeError("func must be callable")
+    if isinstance(deg, (bool, np.bool_)) or int(deg) != deg or int(deg) < 0:
+        raise ValueError("deg must be a nonnegative integer")
+    deg = int(deg)
+    if opts is None:
+        opts = {}
+    elif not isinstance(opts, dict):
+        raise TypeError("opts must be a dictionary or None")
+    else:
+        opts = opts.copy()
+
+    # Set default options if not provided.
     opts.setdefault('npts', 200)
     opts.setdefault('epsil', 0.01)
     opts.setdefault('fscale', 1 - opts['epsil'])
@@ -272,31 +293,75 @@ def cvx_poly_coef(func, deg, opts):
     opts.setdefault('method', 'SLSQP')
     opts.setdefault('solver', 'CLARABEL')
     opts.setdefault('verbose', False)
+    opts.setdefault('maxiter', 1000)
 
-    # Check variables and assign local variables
-    assert len(opts['intervals']) % 2 == 0
+    intervals = np.asarray(opts['intervals'], dtype=float)
+    if intervals.ndim != 1 or intervals.size == 0 or intervals.size % 2:
+        raise ValueError("intervals must contain one or more endpoint pairs")
+    if not np.all(np.isfinite(intervals)):
+        raise ValueError("interval endpoints must be finite")
+    interval_pairs = intervals.reshape(-1, 2)
+    if np.any(interval_pairs[:, 0] > interval_pairs[:, 1]):
+        raise ValueError("each interval must be ordered from left to right")
+    if np.any(intervals < 0) or np.any(intervals > 1):
+        raise ValueError("intervals must lie in [0, 1]")
+    if (
+        isinstance(opts['npts'], (bool, np.bool_))
+        or int(opts['npts']) != opts['npts']
+        or int(opts['npts']) < 2
+    ):
+        raise ValueError("npts must be an integer of at least two")
+    if (
+        isinstance(opts['maxiter'], (bool, np.bool_))
+        or int(opts['maxiter']) != opts['maxiter']
+        or int(opts['maxiter']) < 1
+    ):
+        raise ValueError("maxiter must be a positive integer")
+    if not np.isfinite(opts['epsil']) or not 0 <= opts['epsil'] < 1:
+        raise ValueError("epsil must lie in [0, 1)")
+    if not np.isfinite(opts['fscale']):
+        raise ValueError("fscale must be finite")
+    if not isinstance(opts['isplot'], (bool, np.bool_)):
+        raise TypeError("isplot must be a boolean")
+    if not isinstance(opts['verbose'], (bool, np.bool_)):
+        raise TypeError("verbose must be a boolean")
+    if opts['method'] not in ('SLSQP', 'cvxpy', 'linprog'):
+        raise ValueError(f'Method {opts["method"]} not supported')
+    if opts['method'] == 'linprog' and opts['objnorm'] != np.inf:
+        raise ValueError("linprog supports only objnorm=np.inf")
+
     parity = deg % 2
     epsil = opts['epsil']
-    npts = opts['npts']
+    npts = int(opts['npts'])
 
     # Generate Chebyshev points
     xpts = np.cos(np.pi * np.arange(2 * npts) / (2 * npts - 1))
-    xpts = np.union1d(xpts, opts['intervals'])
+    xpts = np.union1d(xpts, intervals)
     xpts = xpts[xpts >= 0]
     npts = len(xpts)
 
-    n_interval = len(opts['intervals']) // 2
+    n_interval = len(intervals) // 2
     ind_union = np.array([], dtype=int)
     ind_set = []
 
     for i in range(n_interval):
-        ind = np.where((xpts >= opts['intervals'][2 * i]) & (xpts <= opts['intervals'][2 * i + 1]))[0]
+        ind = np.where((xpts >= intervals[2 * i]) & (xpts <= intervals[2 * i + 1]))[0]
         ind_set.append(ind)
         ind_union = np.union1d(ind_union, ind)
 
     # Evaluate the target function
     fx = np.zeros(npts)
-    fx[ind_union] = opts['fscale'] * func(xpts[ind_union])
+    target_values = np.asarray(func(xpts[ind_union]))
+    try:
+        target_values = np.broadcast_to(target_values, ind_union.shape)
+    except ValueError as exc:
+        raise ValueError("func output must broadcast to the approximation grid") from exc
+    if np.iscomplexobj(target_values) and np.any(np.imag(target_values) != 0):
+        raise ValueError("func must return real target values")
+    target_values = np.asarray(np.real(target_values), dtype=float)
+    if not np.all(np.isfinite(target_values)):
+        raise ValueError("func must return finite target values")
+    fx[ind_union] = opts['fscale'] * target_values
 
     # Prepare the Chebyshev polynomials
     n_coef = deg // 2 + 1 if parity == 0 else (deg + 1) // 2
@@ -316,20 +381,30 @@ def cvx_poly_coef(func, deg, opts):
         constraints = [{'type': 'ineq', 'fun': lambda coef: 1 - epsil - Ax @ coef},
                     {'type': 'ineq', 'fun': lambda coef: Ax @ coef + (1 - epsil)}]
 
-        result = minimize(objective, np.zeros(n_coef), constraints=constraints)
+        result = minimize(
+            objective,
+            np.zeros(n_coef),
+            method='SLSQP',
+            constraints=constraints,
+            options={'maxiter': int(opts['maxiter']), 'disp': opts['verbose']},
+        )
+        if not result.success:
+            raise RuntimeError(f'SLSQP failed to find an optimal solution: {result.message}')
         coef = result.x
     
     elif opts['method'] == 'cvxpy':
         c = cp.Variable(n_coef)
         y = Ax @ c
         residual = y[ind_union] - fx[ind_union]
-        objective = cp.Minimize(cp.norm_inf(residual))
+        objective = cp.Minimize(cp.norm(residual, p=opts['objnorm']))
         constraints = [
             y <= 1 - epsil,
             y >= -(1-epsil)
         ]
         problem = cp.Problem(objective, constraints)
         problem.solve(solver=opts['solver'], verbose=opts['verbose'])
+        if problem.status not in (cp.OPTIMAL, cp.OPTIMAL_INACCURATE) or c.value is None:
+            raise RuntimeError(f'CVXPY failed to find an optimal solution: {problem.status}')
         coef = c.value
 
     elif opts['method'] == 'linprog':
@@ -363,11 +438,9 @@ def cvx_poly_coef(func, deg, opts):
         else:
             raise ValueError(f'Linear programming failed to find an optimal solution, status: {result.status}')
 
-    else:
-        raise ValueError(f'Method {opts["method"]} not supported')
-
     err_inf = np.linalg.norm((Ax @ coef)[ind_union] - fx[ind_union], opts['objnorm'])
-    print(f'norm error = {err_inf}')
+    if opts['verbose']:
+        print(f'norm error = {err_inf}')
 
     # Make sure the maximum is less than 1
     coef_full = np.zeros(deg + 1)
@@ -377,7 +450,8 @@ def cvx_poly_coef(func, deg, opts):
         coef_full[1::2] = coef
 
     max_sol = np.max(np.abs(np.polynomial.chebyshev.chebval(xpts, coef_full)))
-    print(f'max of solution = {max_sol}')
+    if opts['verbose']:
+        print(f'max of solution = {max_sol}')
     # if max_sol > 1.0 - 1e-10:
     #     raise ValueError('Solution is not bounded by 1. Increase npts')
 

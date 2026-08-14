@@ -61,6 +61,24 @@ def test_lbfgs_uses_its_correction_history():
     assert obj_value < 1e-12
 
 
+@pytest.mark.parametrize("option", ["maxiter", "lmem"])
+def test_lbfgs_rejects_nonpositive_iteration_options(option):
+    def obj(x, delta, opts):
+        return np.array([x[0] ** 2])
+
+    def grad(x, delta, opts):
+        return np.array([[2 * x[0]]]), obj(x, delta, opts)
+
+    with pytest.raises(ValueError, match=option):
+        lbfgs(
+            obj,
+            grad,
+            np.array([0.0]),
+            np.array([1.0]),
+            {option: 0, "print": False},
+        )
+
+
 def test_real_gradient_does_not_mutate_phase_input():
     """Even-parity scaling must not modify the caller's phase vector."""
     phi = np.array([0.2, -0.1])

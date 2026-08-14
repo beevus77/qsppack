@@ -83,10 +83,6 @@ def _validate_coefficients(coefficients, parity: Optional[int], tolerance: float
 
     active = np.flatnonzero(np.abs(values) > tolerance)
     degree = int(active[-1]) if active.size else int(parity)
-    if degree % 2 != parity:
-        raise ValueError("the highest nonzero coefficient has the wrong parity.")
-    if values.size <= degree:
-        raise ValueError("coefficient array does not contain its inferred degree.")
     return values.copy(), int(parity), degree
 
 

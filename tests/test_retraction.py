@@ -79,6 +79,15 @@ def test_metrics_use_critical_points_not_only_a_uniform_grid():
         ([0.1, 0.2], {}, "inconsistent with parity"),
         ([0.0, 0.5], {"n_weiss": 63}, "even positive integer"),
         ([0.0, 0.5, 0.0, 0.1], {"n_weiss": 2}, "at least the length"),
+        ([], {}, "nonempty one-dimensional"),
+        ([[0.5]], {}, "nonempty one-dimensional"),
+        ([0.5 + 0.2j], {}, "real"),
+        ([np.nan], {}, "finite"),
+        ([0.5], {"parity": 2}, "parity"),
+        ([0.5], {"n_weiss": True}, "even positive integer"),
+        ([0.5], {"n_weiss": 4.5}, "even positive integer"),
+        ([0.5], {"parity_tolerance": -1}, "nonnegative"),
+        ([1.1], {"n_weiss": 64}, "outside"),
     ],
 )
 def test_validation(coefficients, kwargs, message):
