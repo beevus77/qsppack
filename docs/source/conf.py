@@ -32,6 +32,7 @@ extensions = [
     'nbsphinx',
     'sphinx.ext.intersphinx',
     'sphinx.ext.autosummary',
+    'sphinx.ext.doctest',
 ]
 
 templates_path = ['_templates']
@@ -65,8 +66,14 @@ napoleon_type_aliases = None
 
 # nbsphinx settings
 nbsphinx_execute = 'auto'
-nbsphinx_allow_errors = True
+nbsphinx_allow_errors = False
 nbsphinx_timeout = 600
+
+# Shared namespace for executable examples in both API docstrings and RST pages.
+doctest_global_setup = """
+import numpy as np
+from qsppack import *
+"""
 
 # Autodoc settings
 autodoc_default_options = {

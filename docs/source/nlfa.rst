@@ -11,32 +11,45 @@ The nonlinear Fourier analysis (NLFA) module provides functions for working with
 .. autofunction:: forward_nlft
 .. autofunction:: forward_nonlinear_FFT
 
-These functions provide essential operations for nonlinear Fourier analysis, including:
+These functions provide essential operations for nonlinear Fourier analysis,
+including:
+
 - Converting Chebyshev coefficients to complex polynomial coefficients
 - Computing the Weiss algorithm for polynomial coefficients
 - Performing inverse nonlinear FFT operations
 - Computing forward nonlinear Fourier transforms
 - Computing forward nonlinear FFT with recursive algorithm
 
-Example usage:
+Example
+-------
 
-.. code-block:: python
+This example starts with a small feasible odd polynomial, constructs its
+complement with the Weiss factorization, recovers the nonlinear Fourier
+parameters, and verifies the forward transform.
+
+.. testcode::
 
     import numpy as np
-    from qsppack.nlfa import b_from_cheb, weiss, inverse_nonlinear_FFT, forward_nlft
+    from qsppack.nlfa import (
+        b_from_cheb,
+        forward_nlft,
+        forward_nonlinear_FFT,
+        inverse_nonlinear_FFT,
+        weiss,
+    )
 
-    # Convert Chebyshev coefficients to complex polynomial coefficients
-    cheb_coefs = np.array([2, -1, 6, -7, 1])
-    b_coefs = b_from_cheb(cheb_coefs, parity=0)
+    partial_chebyshev_coefficients = np.array([0.2, 0.1])
+    b_coefficients = b_from_cheb(
+        partial_chebyshev_coefficients,
+        parity=1,
+    )
+    a_coefficients = weiss(b_coefficients, N=32)
 
-    # Compute Weiss algorithm
-    a_coefs = weiss(b_coefs, N=8)
+    gammas, _, _ = inverse_nonlinear_FFT(
+        a_coefficients,
+        b_coefficients,
+    )
+    _, reconstructed_b = forward_nonlinear_FFT(gammas)
 
-    # Perform inverse nonlinear FFT
-    gammas, xi_n, eta_n = inverse_nonlinear_FFT(a_coefs, b_coefs)
-
-    # Compute forward nonlinear Fourier transform
-    result = forward_nlft(gammas)
-    
-    # Compute forward nonlinear FFT with recursive algorithm
-    a_star, b = forward_nonlinear_FFT(gammas) 
+    np.testing.assert_allclose(reconstructed_b, b_coefficients, atol=1e-14)
+    np.testing.assert_allclose(forward_nlft(gammas), b_coefficients, atol=1e-14)

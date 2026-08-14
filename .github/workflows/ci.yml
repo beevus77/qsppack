@@ -59,6 +59,11 @@ jobs:
           cache: pip
       - name: Install documentation dependencies
         run: python -m pip install ".[docs]"
+      - name: Execute documentation examples
+        run: >-
+          python -m sphinx -E -W --keep-going
+          -D nbsphinx_execute=never
+          -b doctest docs/source docs/_build/doctest
       - name: Execute notebooks and build documentation
         env:
           MPLBACKEND: Agg
