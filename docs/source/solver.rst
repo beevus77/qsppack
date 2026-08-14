@@ -12,12 +12,13 @@ takes the nonzero-parity Chebyshev coefficients, the polynomial parity, and an
 options dictionary. It returns the phase factors together with convergence and
 timing information.
 
-Example usage:
+Example
+-------
 
-.. code-block:: python
+.. testcode::
 
     import numpy as np
-    from qsppack.solver import solve
+    from qsppack import get_entry, solve
 
     # P(x) = 0.5*x is odd, so its partial coefficient vector is [0.5].
     coefficients = np.array([0.5])
@@ -31,3 +32,7 @@ Example usage:
     }
 
     phases, info = solve(coefficients, parity, options)
+
+    x = np.linspace(-1.0, 1.0, 51)
+    assert info["converged"]
+    np.testing.assert_allclose(get_entry(x, phases, info), 0.5 * x, atol=1e-10)

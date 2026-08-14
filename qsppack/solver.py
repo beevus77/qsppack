@@ -46,7 +46,8 @@ def solve(coef, parity, opts=None):
     Returns
     -------
     phi_proc : ndarray
-        Solution of optimization problem, FULL phase factors
+        Phase factors in the full or reduced convention selected by
+        ``opts['typePhi']``
     out : dict
         Information of solving process containing:
         

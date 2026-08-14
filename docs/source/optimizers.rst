@@ -29,25 +29,22 @@ are method-specific. For normal use, select a method through
 Example
 -------
 
-.. code-block:: python
+.. testcode::
 
     import numpy as np
-    from qsppack import solve
+    from qsppack import get_entry, solve
 
-    # Approximate 0.5*cos(10*x) by an even degree-60 polynomial. solve()
-    # accepts only the coefficients of the polynomial's nonzero parity.
-    full_coefficients = np.polynomial.chebyshev.chebinterpolate(
-        lambda x: 0.5 * np.cos(10 * x),
-        60,
-    )
-    coefficients = full_coefficients[::2]
-    parity = 0
+    coefficients = np.array([0.2, 0.1])
+    parity = 1
+    x = np.linspace(-1.0, 1.0, 51)
+    expected = np.polynomial.chebyshev.chebval(x, [0.0, 0.2, 0.0, 0.1])
 
     common_options = {
         'criteria': 1e-10,
         'targetPre': True,
         'typePhi': 'full',
         'print': False,
+        'N': 256,
     }
     for method in ('FPI', 'Newton', 'LBFGS', 'NLFT'):
         phases, info = solve(
@@ -55,4 +52,9 @@ Example
             parity,
             {**common_options, 'method': method},
         )
-        print(method, info['value'])
+        assert info['converged'], method
+        np.testing.assert_allclose(
+            get_entry(x, phases, info),
+            expected,
+            atol=1e-8,
+        )

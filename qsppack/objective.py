@@ -21,8 +21,8 @@ def obj_sym(phi, delta, opts):
 
     Returns
     -------
-    float
-        Objective function value
+    ndarray
+        Pointwise half-squared objective values, one per sample
     """
     m = len(delta)
     obj = np.zeros(m)

@@ -11,7 +11,7 @@ from scipy.special import chebyt
 import cvxpy as cp
 
 def get_unitary(phase, x):
-    """Compute QSP unitary matrix for given phase factors.
+    """Evaluate the real part of a QSP unitary's upper-left entry.
 
     This function constructs the full QSP unitary matrix for a given set of phase
     factors at a specific point. The unitary is built by alternating W(x) gates
@@ -28,7 +28,7 @@ def get_unitary(phase, x):
     Returns
     -------
     float
-        Real part of the (1,1) element of the QSP unitary matrix, which
+        Real part of the ``[0, 0]`` element of the QSP unitary matrix, which
         represents the QSP approximation of the target function.
 
     Notes
@@ -55,7 +55,8 @@ def get_entry(xlist, phase, opts):
 
     This function evaluates the QSP unitary matrix at multiple points, handling
     both full and reduced phase factors. It can compute either the real or
-    imaginary part of the (1,1) element based on the options.
+    imaginary-part convention of the upper-left ``[0, 0]`` element based on
+    the options.
 
     Parameters
     ----------
@@ -80,9 +81,10 @@ def get_entry(xlist, phase, opts):
     Returns
     -------
     ndarray
-        QSP approximation values at each point in xlist. For targetPre=True,
-        returns real part of (1,1) element; for targetPre=False, returns
-        imaginary part.
+        QSP approximation values at each point in ``xlist``. For
+        ``targetPre=True``, returns the real-part convention; for
+        ``targetPre=False``, applies the endpoint rotation that represents the
+        imaginary-part convention through the real ``[0, 0]`` entry.
 
     Notes
     -----
@@ -197,8 +199,10 @@ def chebyshev_to_func(x, coef, parity, partialcoef):
         Coefficients in Chebyshev basis, ordered from lowest to highest degree
     parity : int
         Parity of the polynomial (0 for even, 1 for odd)
-    partialcoef : bool, optional
-        Whether to return only coefficients of odd/even order
+    partialcoef : bool
+        If true, ``coef`` contains only the nonzero-parity coefficients. If
+        false, ``coef`` is the full ascending Chebyshev coefficient sequence;
+        entries of the opposite parity are ignored.
 
     Returns
     -------
@@ -230,11 +234,10 @@ def chebyshev_to_func(x, coef, parity, partialcoef):
 def cvx_poly_coef(func, deg, opts=None):
     """Compute coefficients for a polynomial approximation using convex optimization.
 
-    This function computes the coefficients of a polynomial that best approximates
-    a target function over specified intervals in a least-squares sense. The function
-    is called with a target function, the degree of the polynomial, and an options
-    dictionary. The returned array contains the full Chebyshev coefficient
-    sequence, including zeros in the opposite-parity positions.
+    This function computes coefficients for a fixed-parity polynomial that
+    approximates a target over specified intervals in the requested norm. The
+    returned array contains the full Chebyshev coefficient sequence, including
+    zeros in the opposite-parity positions.
 
     Parameters
     ----------
@@ -537,7 +540,7 @@ def get_pim_sym(phi, x, parity):
     Returns
     -------
     float
-        Imaginary part of the (1,1) element of the QSP unitary matrix
+        Imaginary part of the upper-left ``[0, 0]`` QSP unitary entry
     """
     # The input contains only the reduced (right-half) symmetric phases.
     # This follows QSPGetPim_sym.m: build the corresponding row product and
@@ -574,7 +577,7 @@ def get_pim_sym_real(phi, x, parity):
     Returns
     -------
     float
-        Imaginary part of the (1,1) element of the QSP unitary matrix
+        Imaginary part of the upper-left ``[0, 0]`` QSP unitary entry
     """
     n = len(phi)
     theta = np.arccos(x)
@@ -751,7 +754,7 @@ def F(phi, parity, opts):
         Chebyshev coefficients of P_im w.r.t. 
         T_(2k) for even parity or T_(2k-1) for odd parity
     """
-    # Setup options for CM solver
+    # Set defaults for the symmetric phase-to-coefficient map.
     opts.setdefault('useReal', True)
 
     # Initial preparation

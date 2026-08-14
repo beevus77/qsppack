@@ -212,7 +212,7 @@ def coordinate_minimization(coef, parity, opts):
     runtime : float
         Total runtime in seconds
     """
-    # Setup options for CM solver
+    # Set defaults for fixed-point iteration.
     opts.setdefault('maxiter', int(1e5))
     opts.setdefault('criteria', 1e-12)
     opts.setdefault('targetPre', True)
@@ -235,7 +235,9 @@ def coordinate_minimization(coef, parity, opts):
     # Initial preparation
     coef = np.asarray(coef, dtype=float).copy()
     if opts['targetPre']:
-        coef = -coef  # inverse is necessary
+        # The symmetric map represents the imaginary-part convention; negate
+        # the target before the endpoint rotation converts it to the real part.
+        coef = -coef
     phi = coef / 2
     iter = 0
 
@@ -311,7 +313,8 @@ def newton(coef, parity, opts):
     # Initial preparation
     coef = np.asarray(coef, dtype=float).copy()
     if opts['targetPre']:
-        coef = -coef  # inverse is necessary
+        # Match the same target-preparation convention used by FPI.
+        coef = -coef
     phi = coef / 2
     iter = 0
 

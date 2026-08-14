@@ -28,8 +28,8 @@ dependencies = [
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/beevus77/qsppack"
-"Bug Tracker" = "https://github.com/beevus77/qsppack/issues"
+"Homepage" = "https://github.com/qsppack/pyqsppack"
+"Bug Tracker" = "https://github.com/qsppack/pyqsppack/issues"
 "Documentation" = "https://qsppack.readthedocs.io/"
 
 [project.optional-dependencies]

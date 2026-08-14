@@ -1,63 +1,52 @@
-.. qsppack documentation master file, created by
-   sphinx-quickstart on Thu May  8 15:36:23 2025.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
+qsppack documentation
+=====================
 
-Welcome to qsppack's documentation!
-===================================
+``qsppack`` provides polynomial construction, phase synthesis, and numerical
+verification tools for Quantum Signal Processing (QSP). Start with the workflow
+guide if you are new to the package; use the reference pages when you already
+know which function you need.
 
-qsppack is a Python package for Quantum Signal Processing optimization and analysis.
-This package is based on a MATLAB package by the same name. The MATLAB code can be found at https://github.com/qsppack/QSPPACK, with an earlier version of the tutorials and examples at https://qsppack.gitbook.io/qsppack/ (not actively maintained).
+Start here
+----------
 
-
-Installation
-------------
-
-You can install qsppack using pip::
-
-    pip install qsppack
-
-Or install from source::
-
-    git clone https://github.com/qsppack/pyqsppack.git
-    cd pyqsppack
-    pip install -e .
-
-For development and testing, install with test dependencies::
-
-    pip install -e ".[test]"
-
-
-Contents
-========
 .. toctree::
    :maxdepth: 2
-   :caption: Contents:
+
+   getting_started
+
+Guides and examples
+-------------------
+
+.. toctree::
+   :maxdepth: 2
+
+   examples
+   polynomial_approximation_examples
+
+API reference
+-------------
+
+.. toctree::
+   :maxdepth: 2
 
    solver
-   objective
    optimizers
+   objective
    utils
    nlfa
    remez
    retraction
 
-Example Applications
-====================
+Project background
+------------------
 
-.. toctree::
-   :maxdepth: 2
-   :caption: Example Applications:
+This package is based on the `QSPPACK MATLAB package
+<https://github.com/qsppack/QSPPACK>`_. Earlier MATLAB-oriented tutorials are
+available in the `QSPPACK GitBook <https://qsppack.gitbook.io/qsppack/>`_, which
+is no longer actively maintained.
 
-   examples
-
-Polynomial Approximation Examples
-=================================
-
-.. toctree::
-   :maxdepth: 2
-   :caption: Polynomial Approximation Examples:
-
-   polynomial_approximation_examples
+Indices
+-------
 
 * :ref:`genindex`
+* :ref:`modindex`

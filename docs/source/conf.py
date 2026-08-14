@@ -18,7 +18,7 @@ with open("../../pyproject.toml", "rb") as f:
     release = version
 
 project = 'qsppack'
-copyright = '2025, James Larsen'
+copyright = '2025-2026, James Larsen'
 author = 'James Larsen'
 
 # -- General configuration ---------------------------------------------------
@@ -54,8 +54,8 @@ html_short_title = 'qsppack'
 napoleon_google_docstring = True
 napoleon_numpy_docstring = True
 napoleon_include_init_with_doc = True
-napoleon_include_private_with_doc = True
-napoleon_include_special_with_doc = True
+napoleon_include_private_with_doc = False
+napoleon_include_special_with_doc = False
 napoleon_use_admonition_for_examples = True
 napoleon_use_admonition_for_notes = True
 napoleon_use_admonition_for_references = True
@@ -77,19 +77,13 @@ from qsppack import *
 
 # Autodoc settings
 autodoc_default_options = {
-    'members': True,
     'member-order': 'bysource',
-    'special-members': '__init__',
-    'undoc-members': True,
-    'exclude-members': '__weakref__',
     'show-inheritance': True,
-    'imported-members': True,
-    'inherited-members': True,
 }
 
 # Autosummary settings
 autosummary_generate = True
-autosummary_imported_members = True
+autosummary_imported_members = False
 
 # Intersphinx settings
 intersphinx_mapping = {

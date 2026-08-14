@@ -29,7 +29,7 @@ Features
 --------
 
 * Quantum Signal Processing optimization
-* Support for various optimization methods (L-BFGS, FPI, Newton)
+* Four phase-synthesis methods: L-BFGS, FPI, Newton, and direct NLFT
 * Utility functions for Chebyshev polynomials and phase factor manipulation
 * Constrained Remez approximation with active-set bound enforcement
 * Nonlinear Fourier retraction into the QSP feasible polynomial set
