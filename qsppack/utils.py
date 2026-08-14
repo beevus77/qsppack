@@ -98,12 +98,11 @@ def get_entry(xlist, phase, opts):
     ret = np.zeros(d)
 
     if typePhi == 'reduced':
-        dd = 2 * len(phase) - 1 + parity
-        phi = np.zeros(dd)
-        phi[(dd - len(phase)):] = phase
-        phi[:len(phase)] += phase[::-1]
+        phi = reduced_to_full(np.asarray(phase, dtype=float), parity, targetPre)
     else:
-        phi = phase
+        # The endpoint rotations below are an evaluation convention and must
+        # not alter a caller's phase vector.
+        phi = np.asarray(phase, dtype=float).copy()
 
     if not targetPre:
         phi[0] -= np.pi / 4
@@ -194,7 +193,8 @@ def chebyshev_to_func(x, coef, parity, partialcoef):
         Function values at the given points. Returns a scalar if input is
         scalar, array otherwise.
     """
-    ret = np.zeros(len(x))
+    x = np.asarray(x, dtype=float)
+    ret = np.zeros_like(x, dtype=float)
     y = np.arccos(x)
     if partialcoef:
         if parity == 0:
@@ -210,6 +210,8 @@ def chebyshev_to_func(x, coef, parity, partialcoef):
         else:
             for k in range(1, len(coef), 2):
                 ret += coef[k] * np.cos(k * y)
+    if ret.ndim == 0:
+        return float(ret)
     return ret
 
 def cvx_poly_coef(func, deg, opts):
@@ -413,15 +415,24 @@ def get_unitary_sym(phi, x, parity):
         The QSP unitary matrix at point x.
     """
     Wx = np.array([[x, 1j * np.sqrt(1 - x**2)], [1j * np.sqrt(1 - x**2), x]])
+    gate = np.diag([np.exp(1j * np.pi / 4), np.exp(-1j * np.pi / 4)])
     expphi = np.exp(1j * phi)
 
-    ret = np.array([[expphi[0], 0], [0, np.conj(expphi[0])]])
+    if parity == 1:
+        ret = np.diag([expphi[0], np.conj(expphi[0])])
+        for k in range(1, len(expphi)):
+            phase = np.diag([expphi[k], np.conj(expphi[k])])
+            ret = ret @ Wx @ phase
+        ret = ret @ gate
+        return ret.T @ Wx @ ret
 
+    ret = np.eye(2, dtype=complex)
     for k in range(1, len(expphi)):
-        temp = np.array([[expphi[k], 0], [0, np.conj(expphi[k])]])
-        ret = np.dot(np.dot(ret, Wx), temp)
-
-    return ret
+        phase = np.diag([expphi[k], np.conj(expphi[k])])
+        ret = ret @ Wx @ phase
+    ret = ret @ gate
+    center = np.diag([expphi[0], np.conj(expphi[0])])
+    return ret.T @ center @ ret
 
 def get_pim_sym(phi, x, parity):
     """Get the imaginary part of the QSP unitary matrix.
@@ -440,8 +451,25 @@ def get_pim_sym(phi, x, parity):
     float
         Imaginary part of the (1,1) element of the QSP unitary matrix
     """
-    U = get_unitary_sym(phi, x, parity)
-    return np.imag(U[0, 0])
+    # The input contains only the reduced (right-half) symmetric phases.
+    # This follows QSPGetPim_sym.m: build the corresponding row product and
+    # close it with its transpose, inserting one W(x) for odd parity.
+    phi = np.asarray(phi)
+    expphi = np.exp(1j * phi[::-1])
+    Wx = np.array([
+        [x, 1j * np.sqrt(1 - x**2)],
+        [1j * np.sqrt(1 - x**2), x],
+    ])
+
+    ret = np.array([expphi[0], 0j])
+    for phase in expphi[1:]:
+        ret = ret @ Wx @ np.diag([phase, np.conj(phase)])
+
+    if parity == 1:
+        value = ret @ Wx @ ret.T
+    else:
+        value = ret @ ret.T
+    return float(np.imag(value))
 
 def get_pim_sym_real(phi, x, parity):
     """Get the imaginary part of the QSP unitary matrix using real arithmetic.
@@ -478,9 +506,10 @@ def get_pim_sym_real(phi, x, parity):
     
     # Apply rotations
     for k in range(1, n):
+        phase = phi[k-1]
         R_phi = np.array([
-            [np.cos(2*phi[k]), -np.sin(2*phi[k]), 0],
-            [np.sin(2*phi[k]), np.cos(2*phi[k]), 0],
+            [np.cos(2*phase), -np.sin(2*phase), 0],
+            [np.sin(2*phase), np.cos(2*phase), 0],
             [0, 0, 1]
         ])
         R = B @ R_phi @ R
@@ -505,41 +534,34 @@ def get_pim_deri_sym(phi, x, parity):
     ndarray
         Derivatives of the imaginary part with respect to each phase factor
     """
-    n = len(phi)
-    theta = np.arccos(x)
-    B = np.array([[np.cos(2 * theta), 0, -np.sin(2 * theta)],
-                  [0, 1, 0],
-                  [np.sin(2 * theta), 0, np.cos(2 * theta)]])
-    
-    L = np.zeros((n, 3))
-    L[n-1, :] = [0, 1, 0]
-    
-    for k in range(n-2, -1, -1):
-        L[k, :] = np.dot(L[k+1, :], np.dot(np.array([[np.cos(2 * phi[k+1]), -np.sin(2 * phi[k+1]), 0],
-                                                     [np.sin(2 * phi[k+1]), np.cos(2 * phi[k+1]), 0],
-                                                     [0, 0, 1]]), B))
-    
-    R = np.zeros((3, n))
-    if parity == 0:
-        R[:, 0] = [1, 0, 0]
-    else:
-        R[:, 0] = [np.cos(theta), 0, np.sin(theta)]
-    
-    for k in range(1, n):
-        R[:, k] = np.dot(B, np.dot(np.array([[np.cos(2 * phi[k-1]), -np.sin(2 * phi[k-1]), 0],
-                                             [np.sin(2 * phi[k-1]), np.cos(2 * phi[k-1]), 0],
-                                             [0, 0, 1]]), R[:, k-1]))
-    
-    y = np.zeros(n+1)
-    for k in range(n):
-        y[k] = 2 * np.dot(L[k, :], np.dot(np.array([[-np.sin(2 * phi[k]), -np.cos(2 * phi[k]), 0],
-                                                    [np.cos(2 * phi[k]), -np.sin(2 * phi[k]), 0],
-                                                    [0, 0, 0]]), R[:, k]))
-    y[n] = np.dot(L[n-1, :], np.dot(np.array([[np.cos(2 * phi[n-1]), -np.sin(2 * phi[n-1]), 0],
-                                              [np.sin(2 * phi[n-1]), np.cos(2 * phi[n-1]), 0],
-                                              [0, 0, 1]]), R[:, n-1]))
-    
-    return y
+    phi = np.asarray(phi)
+    d = len(phi)
+    expphi = np.exp(1j * phi)
+    Wx = np.array([
+        [x, 1j * np.sqrt(1 - x**2)],
+        [1j * np.sqrt(1 - x**2), x],
+    ])
+
+    right = np.zeros((2, d), dtype=complex)
+    right[:, -1] = [expphi[-1], 0]
+    for k in range(d - 2, -1, -1):
+        diagonal = np.array([expphi[k], np.conj(expphi[k])])
+        right[:, k] = diagonal * (Wx @ right[:, k + 1])
+
+    left = right[:, 0].T.copy()
+    right = np.array([[1j], [-1j]]) * right
+    if parity == 1:
+        left = left @ Wx
+
+    values = np.zeros(d + 1, dtype=complex)
+    for k in range(d - 1):
+        values[k] = 2 * left @ right[:, k]
+        diagonal = np.array([expphi[k], np.conj(expphi[k])])
+        left = (left * diagonal) @ Wx
+    values[d - 1] = 2 * left @ right[:, d - 1]
+    values[d] = left @ np.array([expphi[-1], 0])
+
+    return np.imag(values)
 
 def get_pim_deri_sym_real(phi, x, parity):
     """Get the derivative of the imaginary part using real arithmetic.

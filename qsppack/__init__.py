@@ -10,7 +10,7 @@ from .utils import (
     chebyshev_to_func, cvx_poly_coef
 )
 from .objective import obj_sym, grad_sym, grad_sym_real
-from .optimizers import lbfgs, coordinate_minimization, newton
+from .optimizers import lbfgs, coordinate_minimization, newton, nlft
 from .nlfa import (
     b_from_cheb, weiss, inverse_nonlinear_FFT, forward_nlft, forward_nonlinear_FFT
 )
@@ -35,6 +35,7 @@ __all__ = [
     'lbfgs',
     'coordinate_minimization',
     'newton',
+    'nlft',
     # nlfa
     'b_from_cheb',
     'weiss',

@@ -38,7 +38,7 @@ def solve(coef, parity, opts):
             Use only real arithmetics if true
         - targetPre : bool
             Want Pre to be target function if true
-        - method : {'LBFGS', 'FPI', 'Newton'}
+        - method : {'LBFGS', 'FPI', 'Newton', 'NLFT'}
             Optimization method to use
         - typePhi : {'full', 'reduced'}
             Type of phase factors to return
@@ -74,7 +74,10 @@ def solve(coef, parity, opts):
     if opts['method'] == 'LBFGS':
         # Initial preparation
         tot_len = len(coef)
-        delta = np.cos((np.arange(1, 2 * tot_len, 2) * (np.pi / (2 * tot_len))))
+        # Roots of T_{2 * tot_len}. The MATLAB expression is
+        # ``(1:2:2*d-1) * (pi/2/(2*d))``; preserving both divisions gives
+        # pi/(4*d), not pi/(2*d).
+        delta = np.cos(np.arange(1, 2 * tot_len, 2) * np.pi / (4 * tot_len))
         if not opts['targetPre']:
             opts['target'] = lambda x: -chebyshev_to_func(x, coef, parity, True)
         else:
@@ -101,7 +104,7 @@ def solve(coef, parity, opts):
         phi, err, iter, runtime = nlft(coef, parity, opts)
 
     else:
-        print("Assigned method doesn't exist. Please choose method from 'LBFGS', 'FPI' or 'Newton'.")
+        print("Assigned method doesn't exist. Please choose method from 'LBFGS', 'FPI', 'Newton' or 'NLFT'.")
         return None, None
 
     # Output information
@@ -120,4 +123,4 @@ def solve(coef, parity, opts):
         phi_proc = phi
         out['typePhi'] = 'reduced'
 
-    return phi_proc, out 
+    return phi_proc, out

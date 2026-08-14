@@ -1,7 +1,19 @@
 Optimizers Module
 =================
 
-The optimizers module provides various optimization methods for QSP phase factor optimization.
+The optimizers module provides iterative and direct methods for QSP phase
+factor synthesis. The recommended interface is :func:`qsppack.solve`, which
+prepares the method-specific inputs and returns phase factors in a consistent
+format.
+
+The available solver methods are:
+
+* ``FPI`` -- fixed-point iteration. Its historical low-level function name is
+  :func:`coordinate_minimization`.
+* ``Newton`` -- Newton iteration on the symmetric phase-to-coefficient map.
+* ``LBFGS`` -- limited-memory BFGS minimization on Chebyshev sample points.
+* ``NLFT`` -- direct synthesis using the Weiss factorization and inverse
+  nonlinear Fourier transform.
 
 .. currentmodule:: qsppack.optimizers
 
@@ -10,28 +22,37 @@ The optimizers module provides various optimization methods for QSP phase factor
 .. autofunction:: newton
 .. autofunction:: nlft
 
-These optimization methods can be used directly or through the main :func:`qsppack.solve` function.
+The low-level functions are exposed for specialized use, but their signatures
+are method-specific. For normal use, select a method through
+:func:`qsppack.solve` as follows.
 
-Example usage:
+Example
+-------
 
 .. code-block:: python
 
     import numpy as np
-    from qsppack.optimizers import lbfgs, coordinate_minimization, newton, nlft
+    from qsppack import solve
 
-    # Define target polynomial
-    target_poly = np.array([0, 1])
-    parity = 1  # odd parity
-    opts = {'maxiter': 1000, 'criteria': 1e-12}
+    # Approximate 0.5*cos(10*x) by an even degree-60 polynomial. solve()
+    # accepts only the coefficients of the polynomial's nonzero parity.
+    full_coefficients = np.polynomial.chebyshev.chebinterpolate(
+        lambda x: 0.5 * np.cos(10 * x),
+        60,
+    )
+    coefficients = full_coefficients[::2]
+    parity = 0
 
-    # Use L-BFGS optimizer
-    result_lbfgs = lbfgs(target_poly, parity, opts)
-
-    # Use coordinate minimization
-    result_coord = coordinate_minimization(target_poly, parity, opts)
-
-    # Use Newton's method
-    result_newton = newton(target_poly, parity, opts)
-
-    # Use NLFT optimizer
-    result_nlft = nlft(target_poly, parity, opts) 
+    common_options = {
+        'criteria': 1e-10,
+        'targetPre': True,
+        'typePhi': 'full',
+        'print': False,
+    }
+    for method in ('FPI', 'Newton', 'LBFGS', 'NLFT'):
+        phases, info = solve(
+            coefficients,
+            parity,
+            {**common_options, 'method': method},
+        )
+        print(method, info['value'])

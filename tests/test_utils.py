@@ -2,7 +2,14 @@
 
 import numpy as np
 import pytest
-from qsppack import get_unitary, reduced_to_full, chebyshev_to_func
+from qsppack import get_entry, get_unitary, reduced_to_full, chebyshev_to_func
+from qsppack.utils import (
+    F,
+    F_Jacobian,
+    get_pim_sym,
+    get_pim_sym_real,
+    get_unitary_sym,
+)
 
 def test_get_unitary():
     """Test get_unitary function with basic inputs."""
@@ -38,6 +45,87 @@ def test_chebyshev_to_func():
     assert isinstance(result, np.ndarray)
     assert len(result) == len(x)
     assert np.all(np.isfinite(result))  # Check for valid numbers
+
+
+def test_chebyshev_to_func_accepts_scalar_input():
+    """The scalar input documented by chebyshev_to_func should work."""
+    result = chebyshev_to_func(0.5, np.array([1.0]), 1, True)
+
+    assert isinstance(result, float)
+    assert result == pytest.approx(0.5)
+
+
+@pytest.mark.parametrize('parity', [0, 1])
+@pytest.mark.parametrize('use_real', [False, True])
+def test_phase_map_matches_jacobian_value(parity, use_real):
+    """F and F_Jacobian must evaluate the same symmetric QSP map."""
+    phi = np.array([0.12, -0.08, 0.03])
+    opts = {'useReal': use_real}
+
+    value = F(phi, parity, opts)
+    jacobian_value, _ = F_Jacobian(phi, parity, opts)
+
+    np.testing.assert_allclose(value, jacobian_value, atol=1e-12, rtol=1e-12)
+
+
+@pytest.mark.parametrize('parity', [0, 1])
+def test_real_and_complex_phase_maps_agree(parity):
+    """Real and complex implementations should encode the same map."""
+    phi = np.array([0.12, -0.08, 0.03])
+    x = 0.37
+
+    assert get_pim_sym_real(phi, x, parity) == pytest.approx(
+        get_pim_sym(phi, x, parity), abs=1e-12
+    )
+
+
+@pytest.mark.parametrize('parity', [0, 1])
+def test_symmetric_unitary_matches_full_phase_evaluation(parity):
+    """The reduced L-BFGS representation should match the public full one."""
+    reduced_phi = np.array([0.12, -0.08, 0.03])
+    lbfgs_phi = reduced_phi.copy()
+    if parity == 0:
+        lbfgs_phi[0] *= 2
+    x = 0.37
+
+    symmetric_value = np.real(get_unitary_sym(lbfgs_phi, x, parity)[0, 0])
+    full_phi = reduced_to_full(reduced_phi, parity, True)
+    full_value = get_unitary(full_phi, x)
+
+    assert symmetric_value == pytest.approx(full_value, abs=1e-12)
+
+
+def test_get_entry_does_not_mutate_full_phases():
+    phases = np.array([0.1, 0.2, 0.1])
+    original = phases.copy()
+
+    get_entry(
+        np.linspace(-1.0, 1.0, 5),
+        phases,
+        {'typePhi': 'full', 'targetPre': False, 'parity': 0},
+    )
+
+    assert phases == pytest.approx(original)
+
+
+@pytest.mark.parametrize('parity', [0, 1])
+def test_phase_map_jacobian_matches_finite_difference(parity):
+    """F_Jacobian should differentiate the coefficient map returned by F."""
+    phi = np.array([0.12, -0.08, 0.03])
+    opts = {'useReal': True}
+    _, jacobian = F_Jacobian(phi, parity, opts)
+    step = 1e-7
+    finite_difference = np.empty_like(jacobian)
+
+    for column in range(len(phi)):
+        perturbation = np.zeros_like(phi)
+        perturbation[column] = step
+        finite_difference[:, column] = (
+            F(phi + perturbation, parity, opts)
+            - F(phi - perturbation, parity, opts)
+        ) / (2 * step)
+
+    np.testing.assert_allclose(jacobian, finite_difference, atol=1e-8, rtol=1e-8)
 
 def test_reduced_to_full_even_parity():
     """Test reduced_to_full function with even parity."""
@@ -1309,4 +1397,4 @@ def test_reduced_to_full_even_parity_with_targetPre_one_hundred():
     
     assert isinstance(result, np.ndarray)
     assert len(result) == 2 * len(phi_cm) - 1  # For even parity
-    assert np.all(np.isfinite(result)) 
+    assert np.all(np.isfinite(result))
