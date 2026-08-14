@@ -136,6 +136,16 @@ def test_cvx_poly_coef_validates_target_output():
     with pytest.raises(ValueError, match="broadcast"):
         cvx_poly_coef(lambda x: [1.0, 2.0], 2, {"npts": 20})
 
+    coefficients = cvx_poly_coef(
+        lambda x: 0.5 * x.astype(complex) + 1e-16j,
+        1,
+        {"npts": 20, "fscale": 1.0},
+    )
+    np.testing.assert_allclose(coefficients, [0.0, 0.5], atol=1e-5)
+
+    with pytest.raises(ValueError, match="real target"):
+        cvx_poly_coef(lambda x: x + 0.1j, 1, {"npts": 20})
+
 
 @pytest.mark.parametrize("parity", [0, 1])
 @pytest.mark.parametrize("use_real", [False, True])

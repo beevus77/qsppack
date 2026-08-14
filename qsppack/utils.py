@@ -356,9 +356,10 @@ def cvx_poly_coef(func, deg, opts=None):
         target_values = np.broadcast_to(target_values, ind_union.shape)
     except ValueError as exc:
         raise ValueError("func output must broadcast to the approximation grid") from exc
-    if np.iscomplexobj(target_values) and np.any(np.imag(target_values) != 0):
+    target_values = np.real_if_close(target_values, tol=1000)
+    if np.iscomplexobj(target_values):
         raise ValueError("func must return real target values")
-    target_values = np.asarray(np.real(target_values), dtype=float)
+    target_values = np.asarray(target_values, dtype=float)
     if not np.all(np.isfinite(target_values)):
         raise ValueError("func must return finite target values")
     fx[ind_union] = opts['fscale'] * target_values
