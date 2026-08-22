@@ -11,6 +11,9 @@
 .DS_Store
 .mplconfig/
 
+# Editor workspace settings
+.vscode/
+
 # IPython
 profile_default/
 ipython_config.py
