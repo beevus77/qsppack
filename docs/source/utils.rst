@@ -8,6 +8,9 @@ The utils module provides various utility functions for QSP operations.
 Public evaluation and conversion helpers
 ----------------------------------------
 
+.. autoclass:: FeasibilityCertificate
+   :members:
+.. autofunction:: check_feasibility
 .. autofunction:: get_unitary
 .. autofunction:: get_unitary_sym
 .. autofunction:: get_entry
@@ -34,6 +37,7 @@ Example
         F,
         F_Jacobian,
         chebyshev_to_func,
+        check_feasibility,
         get_unitary,
         reduced_to_full,
     )
@@ -61,6 +65,11 @@ Example
         partialcoef=True,
     )
     np.testing.assert_allclose(func_values, 0.5 * x, atol=1e-14)
+
+    # Certify |T_2(x)| <= 1 from its endpoints and derivative roots.
+    certificate = check_feasibility(np.array([0.0, 0.0, 1.0]))
+    assert certificate.is_feasible
+    assert certificate.max_magnitude == 1.0
 
     # Evaluate the reduced phase-to-coefficient map and its Jacobian.
     options = {'useReal': True}

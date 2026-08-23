@@ -16,16 +16,11 @@ from .nlfa import (
     inverse_nonlinear_FFT,
     weiss,
 )
+from .utils import FeasibilityCertificate, check_feasibility
 
 
-@dataclass
-class RetractionMetrics:
-    """Feasibility diagnostics evaluated at endpoints and critical points."""
-
-    max_magnitude: float
-    max_constraint_violation: float
-    maximizer: float
-    critical_points: np.ndarray
+# Backward-compatible name for the certificate returned in retraction results.
+RetractionMetrics = FeasibilityCertificate
 
 
 @dataclass
@@ -84,27 +79,6 @@ def _validate_coefficients(coefficients, parity: Optional[int], tolerance: float
     active = np.flatnonzero(np.abs(values) > tolerance)
     degree = int(active[-1]) if active.size else int(parity)
     return values.copy(), int(parity), degree
-
-
-def _critical_metrics(coefficients: np.ndarray) -> RetractionMetrics:
-    derivative = np.polynomial.chebyshev.chebder(coefficients)
-    if derivative.size <= 1 or np.all(np.abs(derivative) < 1e-15):
-        roots = np.empty(0, dtype=float)
-    else:
-        roots = np.polynomial.chebyshev.chebroots(derivative)
-        roots = np.real(roots[np.abs(np.imag(roots)) <= 1e-10])
-        roots = roots[(roots > -1.0) & (roots < 1.0)]
-        roots = np.unique(np.clip(roots, -1.0, 1.0))
-    points = np.concatenate(([-1.0], roots, [1.0]))
-    magnitudes = np.abs(np.polynomial.chebyshev.chebval(points, coefficients))
-    index = int(np.argmax(magnitudes))
-    maximum = float(magnitudes[index])
-    return RetractionMetrics(
-        max_magnitude=maximum,
-        max_constraint_violation=max(0.0, maximum - 1.0),
-        maximizer=float(points[index]),
-        critical_points=points,
-    )
 
 
 def _chebyshev_from_b(
@@ -221,8 +195,8 @@ def retract(
         parity=parity,
         degree=degree,
         n_weiss=n_weiss,
-        original_metrics=_critical_metrics(original),
-        metrics=_critical_metrics(retracted),
+        original_metrics=check_feasibility(original),
+        metrics=check_feasibility(retracted),
         b_coefficients=b_coefficients,
         a_coefficients=a_coefficients,
         retracted_b_coefficients=retracted_b,

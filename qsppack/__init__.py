@@ -6,8 +6,8 @@ Processing problems.
 
 from .solver import solve
 from .utils import (
-    get_unitary, get_unitary_sym, get_entry, reduced_to_full,
-    chebyshev_to_func, cvx_poly_coef
+    FeasibilityCertificate, check_feasibility, get_unitary, get_unitary_sym,
+    get_entry, reduced_to_full, chebyshev_to_func, cvx_poly_coef
 )
 from .objective import obj_sym, grad_sym, grad_sym_real
 from .optimizers import lbfgs, coordinate_minimization, newton, nlft
@@ -21,6 +21,8 @@ __all__ = [
     # solver
     'solve',
     # utils
+    'FeasibilityCertificate',
+    'check_feasibility',
     'get_unitary',
     'get_unitary_sym',
     'get_entry',

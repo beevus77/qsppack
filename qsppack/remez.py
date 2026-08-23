@@ -11,6 +11,8 @@ import warnings
 
 import numpy as np
 
+from .utils import check_feasibility
+
 
 ArrayFunction = Callable[[np.ndarray], np.ndarray]
 Interval = Tuple[float, float]
@@ -212,16 +214,6 @@ def _full_coefficients(compact_descending: np.ndarray, orders: np.ndarray, degre
     coefficients = np.zeros(degree + 1, dtype=float)
     coefficients[orders.astype(int)] = compact_descending
     return coefficients
-
-
-def _critical_points(coefficients: np.ndarray) -> np.ndarray:
-    derivative = np.polynomial.chebyshev.chebder(coefficients)
-    if derivative.size <= 1 or np.allclose(derivative, 0.0):
-        return np.array([0.0, 1.0])
-    roots = np.polynomial.chebyshev.chebroots(derivative)
-    real = roots.real[np.abs(roots.imag) <= 1e-10]
-    real = real[(real >= -1e-12) & (real <= 1.0 + 1e-12)]
-    return np.unique(np.concatenate(([0.0, 1.0], np.clip(real, 0.0, 1.0))))
 
 
 class ConstrainedRemezFitter:
@@ -451,7 +443,8 @@ class ConstrainedRemezFitter:
         work_error = np.abs(
             np.polynomial.chebyshev.chebval(work_x, coefficients) - _evaluate(self.target, work_x)
         )
-        critical = _critical_points(coefficients)
+        certificate = check_feasibility(coefficients, interval=(0.0, 1.0))
+        critical = certificate.critical_points
         check_x = np.unique(np.concatenate((
             critical,
             np.linspace(0.0, 1.0, max(2, self.options.metrics_grid_size)),
@@ -463,7 +456,7 @@ class ConstrainedRemezFitter:
         return RemezMetrics(
             max_error=max(fit_errors),
             max_work_error=float(np.max(work_error)),
-            max_magnitude=float(np.max(np.abs(np.polynomial.chebyshev.chebval(critical, coefficients)))),
+            max_magnitude=certificate.max_magnitude,
             max_constraint_violation=float(max(0.0, np.max(violation))),
             interval_errors=tuple(fit_errors),
         )
@@ -556,11 +549,9 @@ class ConstrainedRemezFitter:
                 break
 
         raw = _full_coefficients(coefficients, orders, degree)
-        critical = _critical_points(raw)
-        raw_maximum = float(np.max(np.abs(np.polynomial.chebyshev.chebval(critical, raw))))
-        scale_factor = max(1.0, raw_maximum)
-        scaled = raw / scale_factor
         raw_metrics = self._metrics(raw)
+        scale_factor = max(1.0, raw_metrics.max_magnitude)
+        scaled = raw / scale_factor
         scaled_metrics = self._metrics(scaled)
         converged = bool(
             outer_converged and exchange_converged and not encountered_rank_deficiency

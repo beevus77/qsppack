@@ -4,11 +4,34 @@ This module provides utility functions for working with Chebyshev polynomials,
 unitary matrix construction, and other mathematical operations needed in QSP.
 """
 
+from dataclasses import dataclass
+
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.optimize import minimize, linprog
 from scipy.special import chebyt
 import cvxpy as cp
+
+
+@dataclass
+class FeasibilityCertificate:
+    """Critical-point certificate for a polynomial magnitude bound.
+
+    The candidate points contain both interval endpoints and every numerically
+    real root of the polynomial derivative in the interval.
+    """
+
+    max_magnitude: float
+    max_constraint_violation: float
+    maximizer: float
+    critical_points: np.ndarray
+
+    @property
+    def is_feasible(self) -> bool:
+        """Whether the certified maximum satisfies the requested bound."""
+
+        return self.max_constraint_violation == 0.0
+
 
 def get_unitary(phase, x):
     """Evaluate the real part of a QSP unitary's upper-left entry.
@@ -230,6 +253,96 @@ def chebyshev_to_func(x, coef, parity, partialcoef):
     if ret.ndim == 0:
         return float(ret)
     return ret
+
+
+def check_feasibility(
+    coefficients,
+    *,
+    interval=(-1.0, 1.0),
+    bound=1.0,
+    root_tolerance=1e-10,
+):
+    """Certify a real Chebyshev polynomial's constant magnitude bound.
+
+    The global maximum of ``abs(P(x))`` on a closed interval occurs at an
+    endpoint or a real root of ``P'(x)``.  This function evaluates all of those
+    candidates and reports the resulting feasibility diagnostics.
+
+    Parameters
+    ----------
+    coefficients : array_like
+        Real Chebyshev coefficients in ascending order.
+    interval : tuple of float, optional
+        Closed interval on which to check feasibility.  It must lie in
+        ``[-1, 1]``.  The default is the full QSP signal domain.
+    bound : float, optional
+        Nonnegative constant upper bound for ``abs(P(x))``.  The default is
+        one, the QSP feasibility constraint.
+    root_tolerance : float, optional
+        Absolute tolerance used to accept numerically real derivative roots
+        and roots lying just beyond an interval endpoint.
+
+    Returns
+    -------
+    FeasibilityCertificate
+        The maximum magnitude and its location, the nonnegative constraint
+        violation, and all points used to certify the maximum.
+
+    Notes
+    -----
+    The result is a global certificate up to the numerical accuracy of the
+    Chebyshev derivative root finder.
+    """
+
+    values = np.asarray(coefficients)
+    if values.ndim != 1 or values.size == 0:
+        raise ValueError("coefficients must be a nonempty one-dimensional array.")
+    values = np.real_if_close(values, tol=1000)
+    if np.iscomplexobj(values):
+        raise ValueError("coefficients must be real up to numerical roundoff.")
+    values = np.asarray(values, dtype=float)
+    if not np.all(np.isfinite(values)):
+        raise ValueError("coefficients must be finite.")
+
+    endpoints = np.asarray(interval, dtype=float)
+    if endpoints.shape != (2,) or not np.all(np.isfinite(endpoints)):
+        raise ValueError("interval must contain exactly two finite endpoints.")
+    left, right = float(endpoints[0]), float(endpoints[1])
+    if left >= right:
+        raise ValueError("interval endpoints must be strictly increasing.")
+    if left < -1.0 or right > 1.0:
+        raise ValueError("interval must lie in [-1, 1].")
+
+    bound = float(bound)
+    if not np.isfinite(bound) or bound < 0.0:
+        raise ValueError("bound must be finite and nonnegative.")
+    root_tolerance = float(root_tolerance)
+    if not np.isfinite(root_tolerance) or root_tolerance < 0.0:
+        raise ValueError("root_tolerance must be finite and nonnegative.")
+
+    derivative = np.polynomial.chebyshev.chebder(values)
+    if derivative.size <= 1 or not np.any(derivative != 0.0):
+        roots = np.empty(0, dtype=float)
+    else:
+        roots = np.polynomial.chebyshev.chebroots(derivative)
+        roots = roots.real[np.abs(roots.imag) <= root_tolerance]
+        roots = roots[
+            (roots >= left - root_tolerance)
+            & (roots <= right + root_tolerance)
+        ]
+        roots = np.clip(roots, left, right)
+
+    points = np.unique(np.concatenate(([left], roots, [right])))
+    magnitudes = np.abs(np.polynomial.chebyshev.chebval(points, values))
+    index = int(np.argmax(magnitudes))
+    maximum = float(magnitudes[index])
+    return FeasibilityCertificate(
+        max_magnitude=maximum,
+        max_constraint_violation=max(0.0, maximum - bound),
+        maximizer=float(points[index]),
+        critical_points=points,
+    )
+
 
 def cvx_poly_coef(func, deg, opts=None):
     """Compute coefficients for a polynomial approximation using convex optimization.

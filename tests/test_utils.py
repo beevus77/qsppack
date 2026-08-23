@@ -4,7 +4,9 @@ import numpy as np
 import pytest
 
 from qsppack import (
+    FeasibilityCertificate,
     chebyshev_to_func,
+    check_feasibility,
     cvx_poly_coef,
     get_entry,
     get_unitary,
@@ -76,6 +78,50 @@ def test_chebyshev_to_func_accepts_scalar_input():
 
     assert isinstance(result, float)
     assert result == pytest.approx(0.5)
+
+
+def test_check_feasibility_finds_interior_maximum_on_subinterval():
+    coefficients = np.polynomial.chebyshev.poly2cheb([0.0, 1.0, -1.0])
+
+    certificate = check_feasibility(
+        coefficients,
+        interval=(0.0, 1.0),
+        bound=0.2,
+    )
+
+    assert isinstance(certificate, FeasibilityCertificate)
+    np.testing.assert_allclose(certificate.critical_points, [0.0, 0.5, 1.0])
+    assert certificate.maximizer == pytest.approx(0.5)
+    assert certificate.max_magnitude == pytest.approx(0.25)
+    assert certificate.max_constraint_violation == pytest.approx(0.05)
+    assert not certificate.is_feasible
+
+
+def test_check_feasibility_certifies_full_qsp_domain():
+    certificate = check_feasibility([0.0, 0.0, 1.0])
+
+    np.testing.assert_allclose(certificate.critical_points, [-1.0, 0.0, 1.0])
+    assert certificate.max_magnitude == pytest.approx(1.0)
+    assert certificate.max_constraint_violation == 0.0
+    assert certificate.is_feasible
+
+
+@pytest.mark.parametrize(
+    ("coefficients", "options", "message"),
+    [
+        ([], {}, "nonempty one-dimensional"),
+        ([[1.0]], {}, "nonempty one-dimensional"),
+        ([1.0 + 0.1j], {}, "real"),
+        ([np.nan], {}, "finite"),
+        ([1.0], {"interval": (0.0, 0.0)}, "strictly increasing"),
+        ([1.0], {"interval": (-1.1, 1.0)}, r"\[-1, 1\]"),
+        ([1.0], {"bound": -1.0}, "finite and nonnegative"),
+        ([1.0], {"root_tolerance": -1.0}, "finite and nonnegative"),
+    ],
+)
+def test_check_feasibility_validation(coefficients, options, message):
+    with pytest.raises(ValueError, match=message):
+        check_feasibility(coefficients, **options)
 
 
 @pytest.mark.parametrize("parity", [0, 1])
