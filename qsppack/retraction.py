@@ -161,6 +161,13 @@ def retract(
         Retracted coefficients, critical-point feasibility metrics, and NLFA
         reconstruction diagnostics.
 
+    Raises
+    ------
+    RuntimeError
+        If the Weiss factorization does not produce a finite, strictly positive
+        constant coefficient.  The inverse nonlinear FFT is not evaluated in
+        that case.
+
     Notes
     -----
     Feasibility is checked globally on ``[-1, 1]`` at the endpoints and every
@@ -196,6 +203,12 @@ def retract(
         retracted_b = b_coefficients.copy()
     else:
         a_coefficients = weiss(b_coefficients, n_weiss)
+        a_zero = a_coefficients[0]
+        if not (np.isfinite(a_zero) and a_zero > 0.0):
+            raise RuntimeError(
+                "Weiss factorization must produce a finite, positive a_0 "
+                "coefficient before the inverse nonlinear FFT."
+            )
         gammas, _, _ = inverse_nonlinear_FFT(a_coefficients, b_coefficients)
         _, retracted_b = forward_nonlinear_FFT(gammas)
     retracted = _chebyshev_from_b(retracted_b, original.size, parity)

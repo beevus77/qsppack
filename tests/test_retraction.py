@@ -1,6 +1,7 @@
 import numpy as np
 import pytest
 
+import qsppack.retraction as retraction_module
 from qsppack import RetractionResult, retract
 from qsppack.nlfa import weiss
 
@@ -54,6 +55,27 @@ def test_even_retraction_and_constant_edge_case():
     assert constant.coefficients == pytest.approx([0.5], abs=2e-4)
     assert constant.metrics.max_constraint_violation == 0.0
     assert retract([1.0], n_weiss=64).coefficients == pytest.approx([1.0])
+
+
+@pytest.mark.parametrize("a_zero", [0.0, -0.1, np.nan, np.inf])
+def test_retraction_rejects_invalid_weiss_a_zero_before_infft(monkeypatch, a_zero):
+    monkeypatch.setattr(
+        retraction_module,
+        "weiss",
+        lambda _b_coefficients, _n_weiss: np.array([a_zero, 0.0]),
+    )
+
+    def unexpected_infft(*_args, **_kwargs):
+        pytest.fail("inverse_nonlinear_FFT must not run when a_0 is not positive")
+
+    monkeypatch.setattr(
+        retraction_module,
+        "inverse_nonlinear_FFT",
+        unexpected_infft,
+    )
+
+    with pytest.raises(RuntimeError, match="finite, positive a_0"):
+        retract([0.0, 0.5], n_weiss=64, parity=1)
 
 
 def test_metrics_use_critical_points_not_only_a_uniform_grid():
