@@ -1,0 +1,34 @@
+[
+  {
+    "delta": 0.0001,
+    "degree": 2001,
+    "remez_converged": true,
+    "exchange_iterations": 5,
+    "raw_error": 0.7225030098588832,
+    "bounded_error": 0.8388989809856844,
+    "raw_ripple_spread": 3.611333454500709e-12,
+    "alternation_count": 1002,
+    "raw_max_magnitude": 1.7225030098588832,
+    "scale_factor": 1.7225030098588832,
+    "bounded_max_magnitude": 1.0,
+    "raw_to_bounded_identity_residual": -1.378785974281982e-12,
+    "identity_tolerance": 5e-13,
+    "classification": "Remez converged; root-count and alternation checks passed; strict identity tolerance exceeded."
+  },
+  {
+    "delta": 1e-08,
+    "degree": 2001,
+    "remez_converged": true,
+    "exchange_iterations": 6,
+    "raw_error": 0.9999662784703522,
+    "bounded_error": 0.9999831389514202,
+    "raw_ripple_spread": 7.861489237370733e-13,
+    "alternation_count": 1002,
+    "raw_max_magnitude": 1.9999662784698882,
+    "scale_factor": 1.999966278470428,
+    "bounded_max_magnitude": 0.9999999999997301,
+    "raw_to_bounded_identity_residual": 5.342393194496253e-13,
+    "identity_tolerance": 5e-13,
+    "classification": "Remez converged; root-count and alternation checks passed; strict identity tolerance exceeded."
+  }
+]
