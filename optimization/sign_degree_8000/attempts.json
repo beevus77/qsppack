@@ -1,0 +1,152 @@
+[
+  {
+    "delta": 0.005,
+    "degree": 3041,
+    "timeout_seconds": 1800,
+    "wall_seconds": 33.98530129197752,
+    "returncode": 0,
+    "stdout": "delta=0.005 d=3041 bounded_error=9.96186043e-08 alternation=1522 scale-1=4.98e-08 time=33.35s\nPEAK_RSS_GB=1.229\n",
+    "stderr": "",
+    "status": "passed"
+  },
+  {
+    "delta": 0.005,
+    "degree": 3039,
+    "timeout_seconds": 1800,
+    "wall_seconds": 33.98568912499468,
+    "returncode": 0,
+    "stdout": "delta=0.005 d=3039 bounded_error=1.00651435e-07 alternation=1521 scale-1=5.03e-08 time=33.26s\nPEAK_RSS_GB=1.228\n",
+    "stderr": "",
+    "status": "passed"
+  },
+  {
+    "delta": 0.003,
+    "degree": 2855,
+    "timeout_seconds": 1800,
+    "wall_seconds": 28.246849916002247,
+    "returncode": 0,
+    "stdout": "delta=0.003 d=2855 bounded_error=9.98937895e-05 alternation=1429 scale-1=4.99e-05 time=27.65s\nPEAK_RSS_GB=1.108\n",
+    "stderr": "",
+    "status": "passed"
+  },
+  {
+    "delta": 0.003,
+    "degree": 2853,
+    "timeout_seconds": 1800,
+    "wall_seconds": 28.75856187500176,
+    "returncode": 0,
+    "stdout": "delta=0.003 d=2853 bounded_error=0.000100527571 alternation=1428 scale-1=5.03e-05 time=28.16s\nPEAK_RSS_GB=1.107\n",
+    "stderr": "",
+    "status": "passed"
+  },
+  {
+    "delta": 0.003,
+    "degree": 5069,
+    "timeout_seconds": 1800,
+    "wall_seconds": 120.58625145899714,
+    "returncode": 0,
+    "stdout": "delta=0.003 d=5069 bounded_error=9.94222232e-08 alternation=2536 scale-1=4.97e-08 time=119.96s\nPEAK_RSS_GB=2.926\n",
+    "stderr": "",
+    "status": "passed"
+  },
+  {
+    "delta": 0.003,
+    "degree": 5067,
+    "timeout_seconds": 1800,
+    "wall_seconds": 110.53586804197403,
+    "returncode": 0,
+    "stdout": "delta=0.003 d=5067 bounded_error=1.00039417e-07 alternation=2535 scale-1=5e-08 time=109.78s\nPEAK_RSS_GB=2.991\n",
+    "stderr": "",
+    "status": "passed"
+  },
+  {
+    "delta": 0.002,
+    "degree": 4283,
+    "timeout_seconds": 1800,
+    "wall_seconds": 73.62785741701373,
+    "returncode": 0,
+    "stdout": "delta=0.002 d=4283 bounded_error=9.97902473e-05 alternation=2143 scale-1=4.99e-05 time=72.87s\nPEAK_RSS_GB=2.205\n",
+    "stderr": "",
+    "status": "passed"
+  },
+  {
+    "delta": 0.002,
+    "degree": 4281,
+    "timeout_seconds": 1800,
+    "wall_seconds": 73.3399272079987,
+    "returncode": 0,
+    "stdout": "delta=0.002 d=4281 bounded_error=0.00010021188 alternation=2142 scale-1=5.01e-05 time=72.58s\nPEAK_RSS_GB=2.200\n",
+    "stderr": "",
+    "status": "passed"
+  },
+  {
+    "delta": 0.002,
+    "degree": 7603,
+    "timeout_seconds": 1800,
+    "wall_seconds": 323.29623112501577,
+    "returncode": 0,
+    "stdout": "delta=0.002 d=7603 bounded_error=9.95276233e-08 alternation=3803 scale-1=4.98e-08 time=322.64s\nPEAK_RSS_GB=6.338\n",
+    "stderr": "",
+    "status": "passed"
+  },
+  {
+    "delta": 0.002,
+    "degree": 7601,
+    "timeout_seconds": 1800,
+    "wall_seconds": 345.21407237497624,
+    "returncode": 0,
+    "stdout": "delta=0.002 d=7601 bounded_error=9.99390972e-08 alternation=3802 scale-1=5e-08 time=344.43s\nPEAK_RSS_GB=6.272\n",
+    "stderr": "",
+    "status": "passed"
+  },
+  {
+    "delta": 0.002,
+    "degree": 7599,
+    "timeout_seconds": 1800,
+    "wall_seconds": 360.1875420839933,
+    "returncode": 0,
+    "stdout": "delta=0.002 d=7599 bounded_error=1.00352268e-07 alternation=3801 scale-1=5.02e-08 time=359.41s\nPEAK_RSS_GB=6.267\n",
+    "stderr": "",
+    "status": "passed"
+  },
+  {
+    "delta": 0.0015,
+    "degree": 5711,
+    "timeout_seconds": 1800,
+    "wall_seconds": 163.40159129101085,
+    "returncode": 0,
+    "stdout": "delta=0.0015 d=5711 bounded_error=9.97382624e-05 alternation=2857 scale-1=4.99e-05 time=162.64s\nPEAK_RSS_GB=3.732\n",
+    "stderr": "",
+    "status": "passed"
+  },
+  {
+    "delta": 0.0015,
+    "degree": 5709,
+    "timeout_seconds": 1800,
+    "wall_seconds": 146.33607420799672,
+    "returncode": 0,
+    "stdout": "delta=0.0015 d=5709 bounded_error=0.000100054154 alternation=2856 scale-1=5e-05 time=145.55s\nPEAK_RSS_GB=3.739\n",
+    "stderr": "",
+    "status": "passed"
+  },
+  {
+    "delta": 0.0015,
+    "degree": 7999,
+    "timeout_seconds": 1800,
+    "wall_seconds": 392.260286499979,
+    "returncode": 0,
+    "stdout": "delta=0.0015 d=7999 bounded_error=2.75333397e-06 alternation=4001 scale-1=1.38e-06 time=391.42s\nPEAK_RSS_GB=6.875\n",
+    "stderr": "",
+    "status": "passed"
+  },
+  {
+    "delta": 0.001,
+    "degree": 7999,
+    "timeout_seconds": 1800,
+    "wall_seconds": 387.86586449999595,
+    "returncode": 0,
+    "stdout": "delta=0.001 d=7999 bounded_error=0.000181582614 alternation=4001 scale-1=9.08e-05 time=387.05s\nPEAK_RSS_GB=6.969\n",
+    "stderr": "",
+    "status": "passed"
+  }
+]
