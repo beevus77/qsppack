@@ -1,0 +1,22 @@
+{
+  "degree": 10971,
+  "stage": "fit and audit complete",
+  "timestamp": 1789041586.787028,
+  "stage_seconds": {
+    "exchange": 607.2710465840064,
+    "metrics": 573.5113728329889,
+    "root_search": 312.19859179196646
+  },
+  "linear_system_count": 7,
+  "last_linear_system": {
+    "shape": [
+      5487,
+      5487
+    ],
+    "rank": 5487,
+    "largest_singular_value": 103.85098775320516,
+    "smallest_singular_value": 1.2619008886972908e-06,
+    "condition_number": 82297261.76071922,
+    "default_relative_rank_cutoff": 1.2183587472236468e-12
+  }
+}

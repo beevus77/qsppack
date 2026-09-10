@@ -1,0 +1,86 @@
+[
+  {
+    "degree": 5385,
+    "returncode": 0,
+    "seconds": 124.73507158301072,
+    "stdout": "{\"degree\": 5385, \"converged\": true, \"audit_passed\": true, \"audit_failure\": null, \"bounded_error\": 9.89688001395983e-06, \"raw_ripple_spread\": 4.218847493575595e-14, \"seconds\": 124.16009429199039, \"peak_rss_bytes\": 3283255296}\n",
+    "stderr": ""
+  },
+  {
+    "degree": 5383,
+    "returncode": 0,
+    "seconds": 126.5130827499961,
+    "stdout": "{\"degree\": 5383, \"converged\": true, \"audit_passed\": true, \"audit_failure\": null, \"bounded_error\": 9.938281667620785e-06, \"raw_ripple_spread\": 4.5075054799781356e-14, \"seconds\": 125.73826795900823, \"peak_rss_bytes\": 3350200320}\n",
+    "stderr": ""
+  },
+  {
+    "degree": 5379,
+    "returncode": 0,
+    "seconds": 127.4510447079956,
+    "stdout": "{\"degree\": 5379, \"converged\": true, \"audit_passed\": true, \"audit_failure\": null, \"bounded_error\": 1.0021607125931808e-05, \"raw_ripple_spread\": 5.218048215738236e-14, \"seconds\": 126.83069366699783, \"peak_rss_bytes\": 3283075072}\n",
+    "stderr": ""
+  },
+  {
+    "degree": 5381,
+    "returncode": 0,
+    "seconds": 138.38545004202751,
+    "stdout": "{\"degree\": 5381, \"converged\": true, \"audit_passed\": true, \"audit_failure\": null, \"bounded_error\": 9.979857142572435e-06, \"raw_ripple_spread\": 6.661338147750939e-14, \"seconds\": 137.77197850000812, \"peak_rss_bytes\": 3333373952}\n",
+    "stderr": ""
+  },
+  {
+    "degree": 6495,
+    "returncode": 0,
+    "seconds": 231.7883771250199,
+    "stdout": "{\"degree\": 6495, \"converged\": true, \"audit_passed\": true, \"audit_failure\": null, \"bounded_error\": 9.838300216724605e-07, \"raw_ripple_spread\": 5.206945985491984e-14, \"seconds\": 231.02023895797902, \"peak_rss_bytes\": 4676583424}\n",
+    "stderr": ""
+  },
+  {
+    "degree": 6493,
+    "returncode": 0,
+    "seconds": 230.41317633297876,
+    "stdout": "{\"degree\": 6493, \"converged\": true, \"audit_passed\": true, \"audit_failure\": null, \"bounded_error\": 9.87917600281385e-07, \"raw_ripple_spread\": 6.17284001691587e-14, \"seconds\": 229.7088842499943, \"peak_rss_bytes\": 4759519232}\n",
+    "stderr": ""
+  },
+  {
+    "degree": 6489,
+    "returncode": 0,
+    "seconds": 216.1831480830151,
+    "stdout": "{\"degree\": 6489, \"converged\": true, \"audit_passed\": true, \"audit_failure\": null, \"bounded_error\": 9.96143925124926e-07, \"raw_ripple_spread\": 6.661338147750939e-14, \"seconds\": 215.5808271249989, \"peak_rss_bytes\": 4747722752}\n",
+    "stderr": ""
+  },
+  {
+    "degree": 6481,
+    "returncode": 0,
+    "seconds": 229.99071695801103,
+    "stdout": "{\"degree\": 6481, \"converged\": true, \"audit_passed\": true, \"audit_failure\": null, \"bounded_error\": 1.0128031089351452e-06, \"raw_ripple_spread\": 7.649436639667329e-14, \"seconds\": 229.25928720799857, \"peak_rss_bytes\": 4742791168}\n",
+    "stderr": ""
+  },
+  {
+    "degree": 6485,
+    "returncode": 0,
+    "seconds": 215.25223962499877,
+    "stdout": "{\"degree\": 6485, \"converged\": true, \"audit_passed\": true, \"audit_failure\": null, \"bounded_error\": 1.0044388824015371e-06, \"raw_ripple_spread\": 6.272760089132134e-14, \"seconds\": 214.54762512497837, \"peak_rss_bytes\": 4747476992}\n",
+    "stderr": ""
+  },
+  {
+    "degree": 6487,
+    "returncode": 0,
+    "seconds": 214.8306580829958,
+    "stdout": "{\"degree\": 6487, \"converged\": true, \"audit_passed\": true, \"audit_failure\": null, \"bounded_error\": 1.0002827729449493e-06, \"raw_ripple_spread\": 5.0182080713057076e-14, \"seconds\": 214.23510387499118, \"peak_rss_bytes\": 4749475840}\n",
+    "stderr": ""
+  },
+  {
+    "degree": 10917,
+    "returncode": 0,
+    "seconds": 1713.348506957991,
+    "stdout": "{\"degree\": 10917, \"converged\": true, \"audit_passed\": true, \"audit_failure\": null, \"bounded_error\": 1.1069289929110937e-10, \"raw_ripple_spread\": 7.37188088351104e-14, \"seconds\": 1712.6147296670242, \"peak_rss_bytes\": 11775197184}\n",
+    "stderr": ""
+  },
+  {
+    "degree": 10971,
+    "returncode": 0,
+    "seconds": 1242.9968401670048,
+    "stdout": "{\"degree\": 10971, \"converged\": true, \"audit_passed\": true, \"audit_failure\": null, \"bounded_error\": 9.913281306950239e-11, \"raw_ripple_spread\": 7.571721027943568e-14, \"seconds\": 1242.1993131659983, \"peak_rss_bytes\": 11872862208}\n",
+    "stderr": ""
+  }
+]

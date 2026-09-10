@@ -1,0 +1,348 @@
+[
+  {
+    "delta": 0.002,
+    "degree": 10917,
+    "converged": true,
+    "message": "Converged.",
+    "warnings": [],
+    "exchange_iterations": 17,
+    "scale_factor": 1.0000000000553437,
+    "requires_rescaling": true,
+    "library_raw_error": 5.5323967629306026e-11,
+    "library_bounded_error": 1.1066725313924053e-10,
+    "library_bounded_max": 0.9999999999999999,
+    "fitter_stage_seconds": {
+      "exchange": 845.827555750031,
+      "metrics": 783.0593712499831,
+      "root_search": 435.33411387496744
+    },
+    "linear_systems": [
+      {
+        "shape": [
+          5460,
+          5460
+        ],
+        "rank": 5460,
+        "largest_singular_value": 96.80945200955136,
+        "smallest_singular_value": 1.318174755651985e-06,
+        "condition_number": 73442046.73504634,
+        "default_relative_rank_cutoff": 1.212363542890671e-12
+      },
+      {
+        "shape": [
+          5460,
+          5460
+        ],
+        "rank": 5460,
+        "largest_singular_value": 101.7382312167937,
+        "smallest_singular_value": 1.1635162444412891e-06,
+        "condition_number": 87440318.69159468,
+        "default_relative_rank_cutoff": 1.212363542890671e-12
+      },
+      {
+        "shape": [
+          5460,
+          5460
+        ],
+        "rank": 5460,
+        "largest_singular_value": 103.58182902923991,
+        "smallest_singular_value": 1.3682738990154196e-06,
+        "condition_number": 75702554.22088747,
+        "default_relative_rank_cutoff": 1.212363542890671e-12
+      },
+      {
+        "shape": [
+          5460,
+          5460
+        ],
+        "rank": 5460,
+        "largest_singular_value": 103.59376341043904,
+        "smallest_singular_value": 1.3974495224794457e-06,
+        "condition_number": 74130594.16030732,
+        "default_relative_rank_cutoff": 1.212363542890671e-12
+      },
+      {
+        "shape": [
+          5460,
+          5460
+        ],
+        "rank": 5460,
+        "largest_singular_value": 103.59384203556887,
+        "smallest_singular_value": 1.3976387443081969e-06,
+        "condition_number": 74120614.1125157,
+        "default_relative_rank_cutoff": 1.212363542890671e-12
+      },
+      {
+        "shape": [
+          5460,
+          5460
+        ],
+        "rank": 5460,
+        "largest_singular_value": 103.59384858942191,
+        "smallest_singular_value": 1.3976372260935604e-06,
+        "condition_number": 74120699.31692499,
+        "default_relative_rank_cutoff": 1.212363542890671e-12
+      },
+      {
+        "shape": [
+          5460,
+          5460
+        ],
+        "rank": 5460,
+        "largest_singular_value": 103.59386980087402,
+        "smallest_singular_value": 1.3976386531394588e-06,
+        "condition_number": 74120638.81331225,
+        "default_relative_rank_cutoff": 1.212363542890671e-12
+      },
+      {
+        "shape": [
+          5460,
+          5460
+        ],
+        "rank": 5460,
+        "largest_singular_value": 103.59385898187408,
+        "smallest_singular_value": 1.3976382513016167e-06,
+        "condition_number": 74120652.38297349,
+        "default_relative_rank_cutoff": 1.212363542890671e-12
+      },
+      {
+        "shape": [
+          5460,
+          5460
+        ],
+        "rank": 5460,
+        "largest_singular_value": 103.59384870808125,
+        "smallest_singular_value": 1.3976121792981173e-06,
+        "condition_number": 74122027.72882691,
+        "default_relative_rank_cutoff": 1.212363542890671e-12
+      },
+      {
+        "shape": [
+          5460,
+          5460
+        ],
+        "rank": 5460,
+        "largest_singular_value": 103.59384339647738,
+        "smallest_singular_value": 1.3976016858545822e-06,
+        "condition_number": 74122580.44976065,
+        "default_relative_rank_cutoff": 1.212363542890671e-12
+      },
+      {
+        "shape": [
+          5460,
+          5460
+        ],
+        "rank": 5460,
+        "largest_singular_value": 103.59386058910722,
+        "smallest_singular_value": 1.3976376194011008e-06,
+        "condition_number": 74120687.04439856,
+        "default_relative_rank_cutoff": 1.212363542890671e-12
+      },
+      {
+        "shape": [
+          5460,
+          5460
+        ],
+        "rank": 5460,
+        "largest_singular_value": 103.59386441452294,
+        "smallest_singular_value": 1.3976245023461185e-06,
+        "condition_number": 74121385.42264062,
+        "default_relative_rank_cutoff": 1.212363542890671e-12
+      },
+      {
+        "shape": [
+          5460,
+          5460
+        ],
+        "rank": 5460,
+        "largest_singular_value": 103.59384774050022,
+        "smallest_singular_value": 1.3976393653523498e-06,
+        "condition_number": 74120585.25869,
+        "default_relative_rank_cutoff": 1.212363542890671e-12
+      },
+      {
+        "shape": [
+          5460,
+          5460
+        ],
+        "rank": 5460,
+        "largest_singular_value": 103.5938479199329,
+        "smallest_singular_value": 1.3976400213396255e-06,
+        "condition_number": 74120550.59831437,
+        "default_relative_rank_cutoff": 1.212363542890671e-12
+      },
+      {
+        "shape": [
+          5460,
+          5460
+        ],
+        "rank": 5460,
+        "largest_singular_value": 103.59385547483615,
+        "smallest_singular_value": 1.3976261922421099e-06,
+        "condition_number": 74121289.40474997,
+        "default_relative_rank_cutoff": 1.212363542890671e-12
+      },
+      {
+        "shape": [
+          5460,
+          5460
+        ],
+        "rank": 5460,
+        "largest_singular_value": 103.59384471044301,
+        "smallest_singular_value": 1.3976363345039523e-06,
+        "condition_number": 74120743.82511702,
+        "default_relative_rank_cutoff": 1.212363542890671e-12
+      },
+      {
+        "shape": [
+          5460,
+          5460
+        ],
+        "rank": 5460,
+        "largest_singular_value": 103.59385256673275,
+        "smallest_singular_value": 1.3976251614769457e-06,
+        "condition_number": 74121341.98933536,
+        "default_relative_rank_cutoff": 1.212363542890671e-12
+      }
+    ],
+    "raw_error": 5.534928071426748e-11,
+    "bounded_error": 1.1069289929110937e-10,
+    "raw_ripple_spread": 7.37188088351104e-14,
+    "bounded_centered_ripple_spread": 7.360778653264788e-14,
+    "identity_residual": -5.662131298506405e-15,
+    "raw_max_magnitude": 1.0000000000553437,
+    "bounded_max_magnitude": 1.0,
+    "alternation_count": 5460,
+    "expected_alternation_count": 5460,
+    "raw_alternation_lower_bound": 5.527556190543237e-11,
+    "checks": {
+      "convergence": true,
+      "magnitude": true,
+      "error_nonnegative": true,
+      "centered_ripple": true,
+      "error_identity": true
+    },
+    "audit_passed": true,
+    "audit_seconds": 73.75978283301811,
+    "seconds": 1712.6147296670242,
+    "peak_rss_bytes": 11775197184
+  },
+  {
+    "delta": 0.002,
+    "degree": 10971,
+    "converged": true,
+    "message": "Converged.",
+    "warnings": [],
+    "exchange_iterations": 7,
+    "scale_factor": 1.0000000000495672,
+    "requires_rescaling": true,
+    "library_raw_error": 4.955635901637834e-11,
+    "library_bounded_error": 9.911227394354682e-11,
+    "library_bounded_max": 0.9999999999999999,
+    "fitter_stage_seconds": {
+      "exchange": 607.2710465840064,
+      "metrics": 573.5113728329889,
+      "root_search": 312.19859179196646
+    },
+    "linear_systems": [
+      {
+        "shape": [
+          5487,
+          5487
+        ],
+        "rank": 5487,
+        "largest_singular_value": 97.15997783847739,
+        "smallest_singular_value": 1.1903597138386212e-06,
+        "condition_number": 81622367.34739622,
+        "default_relative_rank_cutoff": 1.2183587472236468e-12
+      },
+      {
+        "shape": [
+          5487,
+          5487
+        ],
+        "rank": 5487,
+        "largest_singular_value": 102.03478313793202,
+        "smallest_singular_value": 1.0500843455601261e-06,
+        "condition_number": 97168178.50808507,
+        "default_relative_rank_cutoff": 1.2183587472236468e-12
+      },
+      {
+        "shape": [
+          5487,
+          5487
+        ],
+        "rank": 5487,
+        "largest_singular_value": 103.83913250818016,
+        "smallest_singular_value": 1.2353830756369364e-06,
+        "condition_number": 84054197.0794306,
+        "default_relative_rank_cutoff": 1.2183587472236468e-12
+      },
+      {
+        "shape": [
+          5487,
+          5487
+        ],
+        "rank": 5487,
+        "largest_singular_value": 103.85088563612436,
+        "smallest_singular_value": 1.261753880552074e-06,
+        "condition_number": 82306769.36034858,
+        "default_relative_rank_cutoff": 1.2183587472236468e-12
+      },
+      {
+        "shape": [
+          5487,
+          5487
+        ],
+        "rank": 5487,
+        "largest_singular_value": 103.85096243853613,
+        "smallest_singular_value": 1.2619281605303265e-06,
+        "condition_number": 82295463.15448944,
+        "default_relative_rank_cutoff": 1.2183587472236468e-12
+      },
+      {
+        "shape": [
+          5487,
+          5487
+        ],
+        "rank": 5487,
+        "largest_singular_value": 103.85097143583019,
+        "smallest_singular_value": 1.2619187162784912e-06,
+        "condition_number": 82296086.18698977,
+        "default_relative_rank_cutoff": 1.2183587472236468e-12
+      },
+      {
+        "shape": [
+          5487,
+          5487
+        ],
+        "rank": 5487,
+        "largest_singular_value": 103.85098775320516,
+        "smallest_singular_value": 1.2619008886972908e-06,
+        "condition_number": 82297261.76071922,
+        "default_relative_rank_cutoff": 1.2183587472236468e-12
+      }
+    ],
+    "raw_error": 4.9567239202019664e-11,
+    "bounded_error": 9.913281306950239e-11,
+    "raw_ripple_spread": 7.571721027943568e-14,
+    "bounded_centered_ripple_spread": 7.560618797697316e-14,
+    "identity_residual": -1.66532962311008e-15,
+    "raw_max_magnitude": 1.0000000000495672,
+    "bounded_max_magnitude": 1.0,
+    "alternation_count": 5487,
+    "expected_alternation_count": 5487,
+    "raw_alternation_lower_bound": 4.949152199174023e-11,
+    "checks": {
+      "convergence": true,
+      "magnitude": true,
+      "error_nonnegative": true,
+      "centered_ripple": true,
+      "error_identity": true
+    },
+    "audit_passed": true,
+    "audit_seconds": 51.69181166597991,
+    "seconds": 1242.1993131659983,
+    "peak_rss_bytes": 11872862208
+  }
+]

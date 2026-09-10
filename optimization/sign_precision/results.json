@@ -1,0 +1,34 @@
+[
+  {
+    "epsilon": 0.0001,
+    "degree": 4283,
+    "error": 9.979024733275388e-05,
+    "previous_degree": 4281,
+    "previous_error": 0.0001002118800841334,
+    "status": "verified_minimum"
+  },
+  {
+    "epsilon": 1e-05,
+    "degree": 5381,
+    "error": 9.979857142572435e-06,
+    "previous_degree": 5379,
+    "previous_error": 1.0021607125931808e-05,
+    "status": "verified_minimum"
+  },
+  {
+    "epsilon": 1e-06,
+    "degree": 6489,
+    "error": 9.96143925124926e-07,
+    "previous_degree": 6487,
+    "previous_error": 1.0002827729449493e-06,
+    "status": "verified_minimum"
+  },
+  {
+    "epsilon": 1e-07,
+    "degree": 7601,
+    "error": 9.993909722005867e-08,
+    "previous_degree": 7599,
+    "previous_error": 1.0035226793991825e-07,
+    "status": "verified_minimum"
+  }
+]

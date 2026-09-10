@@ -9,6 +9,7 @@ in their own directories.
 | Baseline degree and accuracy scaling | [sign_degree_scaling](sign_degree_scaling/README.md) | `sign_degree_scaling.py` |
 | Small gaps through 1e-8, degree capped at 2001 | [sign_degree_stress](sign_degree_stress/README.md) | `sign_degree_stress.py` |
 | Gaps 1e-1 through 1e-3, degrees through 7999 | [sign_degree_8000](sign_degree_8000/README.md) | `sign_degree_8000.py` |
+| Fixed delta=0.002, precision through 1e-10 | [sign_precision](sign_precision/README.md) | `sign_precision.py` |
 
 Each results directory contains PNG/PDF figures and JSON data. A reported
 minimum degree always has an audited passing polynomial and a failing
